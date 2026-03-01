@@ -2,6 +2,8 @@
 
 A browser-based platforming side-scroller where you play as a porcupine navigating through an underground cave!
 
+Our oldest kid helped provide content ideas. 🙂
+
 ## How to Play
 
 1. Open `index.html` in any modern web browser
