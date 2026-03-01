@@ -4,9 +4,11 @@ A browser-based platforming side-scroller where you play as a porcupine navigati
 
 Our oldest kid helped provide content ideas. 🙂
 
+**[▶️ Play Now](https://kendaleiv.github.io/porcupine-spikey/)** — no download required!
+
 ## How to Play
 
-1. Open `index.html` in any modern web browser
+1. Open the [hosted version](https://kendaleiv.github.io/porcupine-spikey/) or `index.html` in any modern web browser
 2. The porcupine automatically walks forward through the level
 3. Press **SPACEBAR** to jump
 4. Jump **on top** of enemies to defeat them — the porcupine's spikes do the damage!
