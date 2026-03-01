@@ -706,9 +706,9 @@
     drawHUD();
 
     if (state === "dead") {
-      drawOverlay("GAME OVER", "Press SPACE to retry");
+      drawOverlay("GAME OVER", "Press SPACE or TAP to retry");
     } else if (state === "won") {
-      drawOverlay("LEVEL COMPLETE!", "Score: " + score + "  —  Press SPACE to replay");
+      drawOverlay("LEVEL COMPLETE!", "Score: " + score + "  —  Press SPACE or TAP to replay");
     }
 
     requestAnimationFrame(loop);
