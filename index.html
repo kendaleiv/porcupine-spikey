@@ -557,22 +557,31 @@
     }
 
     else if (e.type === "thrower") {
-      // Hooded figure
-      ctx.fillStyle = "#4a3060";
+      // Friendly robed figure
+      ctx.fillStyle = "#7a6aad";
       ctx.beginPath();
       ctx.ellipse(ex + 16, ey + 22, 13, 16, 0, 0, Math.PI * 2);
       ctx.fill();
-      // Hood
-      ctx.fillStyle = "#3a2050";
+      // Hat
+      ctx.fillStyle = "#9484c4";
       ctx.beginPath();
       ctx.arc(ex + 16, ey + 6, 10, 0, Math.PI * 2);
       ctx.fill();
-      // Eyes (glowing)
-      ctx.fillStyle = "#ff4444";
-      ctx.beginPath(); ctx.arc(ex + 12, ey + 6, 2, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(ex + 20, ey + 6, 2, 0, Math.PI * 2); ctx.fill();
+      // Eyes (friendly)
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 12, ey + 6, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 20, ey + 6, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#222";
+      ctx.beginPath(); ctx.arc(ex + 12, ey + 6, 1, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 20, ey + 6, 1, 0, Math.PI * 2); ctx.fill();
+      // Smile
+      ctx.strokeStyle = "#222";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(ex + 16, ey + 10, 4, 0.1 * Math.PI, 0.9 * Math.PI);
+      ctx.stroke();
       // Arm with ball
-      ctx.fillStyle = "#4a3060";
+      ctx.fillStyle = "#7a6aad";
       ctx.fillRect(ex - 4, ey + 12, 8, 4);
       // Spikey ball in hand
       drawSpikeyBall(ex - 6, ey + 10, 5);
