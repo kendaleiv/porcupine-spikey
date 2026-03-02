@@ -84,6 +84,18 @@
     keys["Space"] = false;
   });
 
+  // Mouse click for level selector
+  var mouseClick = null;
+  canvas.addEventListener("click", function (e) {
+    var r = canvas.getBoundingClientRect();
+    var scaleX = CANVAS_W / r.width;
+    var scaleY = CANVAS_H / r.height;
+    mouseClick = {
+      x: (e.clientX - r.left) * scaleX,
+      y: (e.clientY - r.top) * scaleY
+    };
+  });
+
   // ── Helpers ────────────────────────────────────────────────
   function rect(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(x, y, w, h); }
 
@@ -92,24 +104,36 @@
            a.y < b.y + b.h && a.y + a.h > b.y;
   }
 
+  function pointInRect(px, py, rx, ry, rw, rh) {
+    return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+  }
+
   // ── Camera ─────────────────────────────────────────────────
   var camera = { x: 0 };
 
+  // ── Current level ──────────────────────────────────────────
+  var currentLevel = 1;
+
   // ── Platforms / terrain ────────────────────────────────────
-  // Each platform: { x, y, w, h }
   var platforms = [];
 
-  // Ground segments (cave floor)
-  (function buildLevel() {
+  // ── Stalactites (level 1 cave ceiling decoration) ──────────
+  var stalactites = [];
+
+  // ── Icicles (level 2 falling hazards) ──────────────────────
+  var icicles = [];
+
+  // ── Level builders ─────────────────────────────────────────
+  function buildLevel1() {
+    platforms.length = 0;
+    stalactites.length = 0;
     var gx = 0;
-    // Simple seeded pseudo-random for consistent level layout
     var seed = 42;
     function seededRandom() {
       seed = (seed * 16807) % 2147483647;
       return (seed - 1) / 2147483646;
     }
     while (gx < LEVEL_END + CANVAS_W) {
-      // occasional gaps — no gaps in the first 800px (safe start zone)
       var gap = false;
       if (gx > 800 && gx < LEVEL_END - 400 && seededRandom() < 0.08) {
         gap = true;
@@ -119,7 +143,6 @@
       }
       gx += 80;
     }
-    // Floating platforms
     var floats = [
       [320, 260], [560, 220], [900, 250], [1200, 200],
       [1500, 260], [1800, 180], [2100, 240], [2500, 200],
@@ -130,17 +153,64 @@
     for (var i = 0; i < floats.length; i++) {
       platforms.push({ x: floats[i][0], y: floats[i][1], w: 120, h: 16 });
     }
-  })();
-
-  // ── Stalactites (cave ceiling decoration) ──────────────────
-  var stalactites = [];
-  (function () {
+    // Stalactites
     var sSeed = 123;
     function sRand() { sSeed = (sSeed * 16807) % 2147483647; return (sSeed - 1) / 2147483646; }
     for (var sx = 60; sx < LEVEL_END; sx += 140 + Math.floor(sRand() * 120)) {
       stalactites.push({ x: sx, h: 30 + Math.floor(sRand() * 50) });
     }
-  })();
+  }
+
+  function buildLevel2() {
+    platforms.length = 0;
+    stalactites.length = 0;
+    icicles.length = 0;
+    var gx = 0;
+    var seed = 77;
+    function seededRandom() {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    }
+    while (gx < LEVEL_END + CANVAS_W) {
+      var gap = false;
+      if (gx > 800 && gx < LEVEL_END - 400 && seededRandom() < 0.10) {
+        gap = true;
+      }
+      if (!gap) {
+        platforms.push({ x: gx, y: GROUND_Y, w: 80, h: 60 });
+      }
+      gx += 80;
+    }
+    var floats = [
+      [300, 250], [540, 210], [880, 260], [1150, 190],
+      [1450, 250], [1750, 170], [2050, 230], [2400, 190],
+      [2700, 250], [3000, 170], [3300, 220], [3700, 190],
+      [4000, 250], [4300, 180], [4600, 230], [4900, 190],
+      [5200, 250], [5500, 170], [5800, 210], [6100, 250]
+    ];
+    for (var i = 0; i < floats.length; i++) {
+      platforms.push({ x: floats[i][0], y: floats[i][1], w: 120, h: 16 });
+    }
+    // Decorative stalactites (ice themed — static, non-falling)
+    var sSeed = 200;
+    function sRand() { sSeed = (sSeed * 16807) % 2147483647; return (sSeed - 1) / 2147483646; }
+    for (var sx = 80; sx < LEVEL_END; sx += 160 + Math.floor(sRand() * 140)) {
+      stalactites.push({ x: sx, h: 25 + Math.floor(sRand() * 40) });
+    }
+    // Falling icicles — placed at intervals, triggered when player is near
+    var iSeed = 300;
+    function iRand() { iSeed = (iSeed * 16807) % 2147483647; return (iSeed - 1) / 2147483646; }
+    for (var ix = 500; ix < LEVEL_END - 200; ix += 200 + Math.floor(iRand() * 250)) {
+      icicles.push({
+        x: ix, baseY: 22, y: 22, h: 30 + Math.floor(iRand() * 30),
+        falling: false, fallen: false, vy: 0,
+        w: 12
+      });
+    }
+  }
+
+  // Build level 1 initially
+  buildLevel1();
 
   // ── Player ─────────────────────────────────────────────────
   var player = {
@@ -150,13 +220,13 @@
   };
 
   // ── Enemies ────────────────────────────────────────────────
-  // Types: "thrower", "moose", "dinosaur", "penguin"
+  // Level 1 types: "thrower", "moose", "dinosaur", "penguin"
+  // Level 2 adds: "snowman", "stingray", "spiky_guy"
   var enemies = [];
-  var projectiles = [];   // spikey balls from throwers
+  var projectiles = [];   // spikey balls / snowballs / pretzels
 
-  function spawnEnemies() {
+  function spawnEnemiesLevel1() {
     var defs = [
-      // x, type  — first enemies are further away to give player reaction time
       { x: 900, type: "moose" },
       { x: 1300, type: "penguin" },
       { x: 1700, type: "thrower" },
@@ -184,11 +254,59 @@
       enemies.push({
         x: d.x, y: GROUND_Y - eh, w: ew, h: eh,
         type: d.type, alive: true,
-        vx: 0,  // penguins start stationary until activated
-        activated: d.type !== "penguin",  // non-penguins are always active
+        vx: 0,
+        activated: d.type !== "penguin",
         shootTimer: d.type === "thrower" ? 120 : 0
       });
     }
+  }
+
+  function spawnEnemiesLevel2() {
+    var defs = [
+      { x: 900, type: "snowman" },
+      { x: 1200, type: "stingray" },
+      { x: 1500, type: "moose" },
+      { x: 1800, type: "spiky_guy" },
+      { x: 2100, type: "penguin" },
+      { x: 2400, type: "snowman" },
+      { x: 2700, type: "stingray" },
+      { x: 3000, type: "dinosaur" },
+      { x: 3300, type: "spiky_guy" },
+      { x: 3600, type: "snowman" },
+      { x: 3900, type: "thrower" },
+      { x: 4200, type: "stingray" },
+      { x: 4500, type: "spiky_guy" },
+      { x: 4800, type: "penguin" },
+      { x: 5100, type: "snowman" },
+      { x: 5400, type: "stingray" },
+      { x: 5700, type: "spiky_guy" },
+      { x: 6000, type: "moose" },
+      { x: 6100, type: "snowman" }
+    ];
+    for (var i = 0; i < defs.length; i++) {
+      var d = defs[i];
+      var ew, eh;
+      if (d.type === "moose")          { ew = 44; eh = 44; }
+      else if (d.type === "dinosaur")  { ew = 48; eh = 48; }
+      else if (d.type === "penguin")   { ew = 28; eh = 34; }
+      else if (d.type === "thrower")   { ew = 32; eh = 38; }
+      else if (d.type === "snowman")   { ew = 36; eh = 44; }
+      else if (d.type === "stingray")  { ew = 44; eh = 20; }
+      else if (d.type === "spiky_guy") { ew = 34; eh = 38; }
+      else                             { ew = 32; eh = 38; }
+      enemies.push({
+        x: d.x, y: GROUND_Y - eh, w: ew, h: eh,
+        type: d.type, alive: true,
+        vx: 0,
+        activated: d.type !== "penguin" && d.type !== "stingray",
+        shootTimer: (d.type === "thrower" || d.type === "snowman" || d.type === "spiky_guy") ? 120 : 0
+      });
+    }
+  }
+
+  function spawnEnemies() {
+    if (currentLevel === 1) spawnEnemiesLevel1();
+    else spawnEnemiesLevel2();
   }
   spawnEnemies();
 
@@ -209,30 +327,91 @@
   var finish = { x: LEVEL_END, y: GROUND_Y - 80, w: 40, h: 80 };
 
   // ── Game state ─────────────────────────────────────────────
-  var state = "playing";  // "playing", "dead", "won"
+  var state = "level_select";  // "level_select", "playing", "dead", "won"
   var deathTimer = 0;
   var score = 0;
+  var levelSelectCursor = 0;
+  var frameCount = 0;
 
-  // ── Reset ──────────────────────────────────────────────────
-  function resetGame() {
+  // ── Level selector button areas ────────────────────────────
+  var levelButtons = [
+    { x: 160, y: 160, w: 200, h: 100, label: "Level 1", sub: "Cave Adventure" },
+    { x: 440, y: 160, w: 200, h: 100, label: "Level 2", sub: "Ice Cave" }
+  ];
+  var backButton = { x: 10, y: 10, w: 80, h: 28 };
+
+  // ── Start a level ──────────────────────────────────────────
+  function startLevel(level) {
+    currentLevel = level;
+    if (level === 1) buildLevel1();
+    else buildLevel2();
     player.x = 80; player.y = GROUND_Y - 36;
     player.vy = 0; player.onGround = false;
     player.alive = true; player.won = false;
     camera.x = 0; state = "playing"; deathTimer = 0; score = 0;
     enemies.length = 0; projectiles.length = 0; particles.length = 0;
+    icicles.forEach(function (ic) { ic.falling = false; ic.fallen = false; ic.y = ic.baseY; ic.vy = 0; });
     spawnEnemies();
+  }
+
+  function goToLevelSelect() {
+    state = "level_select";
+    mouseClick = null;
+  }
+
+  // ── Reset ──────────────────────────────────────────────────
+  function resetGame() {
+    startLevel(currentLevel);
   }
 
   // ── UPDATE ─────────────────────────────────────────────────
   function update() {
+    frameCount++;
+
+    // ── Level select screen ──
+    if (state === "level_select") {
+      if (mouseClick) {
+        for (var li = 0; li < levelButtons.length; li++) {
+          var lb = levelButtons[li];
+          if (pointInRect(mouseClick.x, mouseClick.y, lb.x, lb.y, lb.w, lb.h)) {
+            mouseClick = null;
+            startLevel(li + 1);
+            return;
+          }
+        }
+        mouseClick = null;
+      }
+      // Keyboard navigation
+      if (keys["ArrowLeft"] || keys["KeyA"]) { levelSelectCursor = 0; keys["ArrowLeft"] = false; keys["KeyA"] = false; }
+      if (keys["ArrowRight"] || keys["KeyD"]) { levelSelectCursor = 1; keys["ArrowRight"] = false; keys["KeyD"] = false; }
+      if (keys["Enter"] || keys["Space"]) {
+        keys["Enter"] = false; keys["Space"] = false;
+        startLevel(levelSelectCursor + 1);
+        return;
+      }
+      return;
+    }
+
     if (state === "dead") {
       deathTimer++;
       if (deathTimer > 90 && keys["Space"]) resetGame();
+      if (keys["Escape"]) { keys["Escape"] = false; goToLevelSelect(); }
       return;
     }
     if (state === "won") {
-      if (keys["Space"]) resetGame();
+      if (keys["Space"]) goToLevelSelect();
       return;
+    }
+
+    // Back to level select
+    if (keys["Escape"]) { keys["Escape"] = false; goToLevelSelect(); return; }
+    if (mouseClick) {
+      if (pointInRect(mouseClick.x, mouseClick.y, backButton.x, backButton.y, backButton.w, backButton.h)) {
+        mouseClick = null;
+        goToLevelSelect();
+        return;
+      }
+      mouseClick = null;
     }
 
     // Player auto-walk
@@ -272,6 +451,35 @@
     player.frameTimer++;
     if (player.frameTimer > 6) { player.frame = (player.frame + 1) % 4; player.frameTimer = 0; }
 
+    // ── Update falling icicles (level 2) ──
+    if (currentLevel === 2) {
+      for (var ii = 0; ii < icicles.length; ii++) {
+        var ic = icicles[ii];
+        if (ic.fallen) continue;
+        // Trigger when player is nearby horizontally
+        if (!ic.falling && Math.abs(player.x - ic.x) < 120) {
+          ic.falling = true;
+        }
+        if (ic.falling) {
+          ic.vy += 0.4;
+          ic.y += ic.vy;
+          // Hit ground or platform
+          var icicleBottom = ic.y + ic.h;
+          if (icicleBottom >= GROUND_Y) {
+            ic.y = GROUND_Y - ic.h;
+            ic.fallen = true;
+            ic.vy = 0;
+          }
+          // Check collision with player
+          var icicleBox = { x: ic.x - ic.w / 2, y: ic.y, w: ic.w, h: ic.h };
+          if (aabb(player, icicleBox)) {
+            state = "dead"; player.alive = false;
+            return;
+          }
+        }
+      }
+    }
+
     // ── Update enemies ──
     for (var ei = 0; ei < enemies.length; ei++) {
       var e = enemies[ei];
@@ -285,9 +493,23 @@
         }
       }
 
+      // Activate stingrays when near screen
+      if (!e.activated && e.type === "stingray") {
+        if (e.x - camera.x < CANVAS_W + 60) {
+          e.activated = true;
+          e.vx = -2;
+        }
+      }
+
       // Penguin slides once activated
       if (e.type === "penguin" && e.activated) {
         e.x += e.vx;
+      }
+      // Stingray glides
+      if (e.type === "stingray" && e.activated) {
+        e.x += e.vx;
+        // Gentle wave motion
+        e.y = (GROUND_Y - e.h) + Math.sin(frameCount * 0.05 + e.x * 0.01) * 15;
       }
       // Thrower shoots only when on screen
       if (e.type === "thrower") {
@@ -295,21 +517,42 @@
           e.shootTimer--;
           if (e.shootTimer <= 0) {
             e.shootTimer = 120;
-            projectiles.push({ x: e.x, y: e.y + 10, vx: -3, vy: -2, life: 120, w: 10, h: 10 });
+            projectiles.push({ x: e.x, y: e.y + 10, vx: -3, vy: -2, life: 120, w: 10, h: 10, ptype: "spikeyball" });
+          }
+        }
+      }
+      // Snowman throws snowballs
+      if (e.type === "snowman") {
+        if (e.x - camera.x < CANVAS_W && e.x - camera.x > -40) {
+          e.shootTimer--;
+          if (e.shootTimer <= 0) {
+            e.shootTimer = 100;
+            projectiles.push({ x: e.x, y: e.y + 8, vx: -4, vy: -3, life: 150, w: 12, h: 12, ptype: "snowball" });
+          }
+        }
+      }
+      // Spiky guy throws pretzels
+      if (e.type === "spiky_guy") {
+        if (e.x - camera.x < CANVAS_W && e.x - camera.x > -40) {
+          e.shootTimer--;
+          if (e.shootTimer <= 0) {
+            e.shootTimer = 140;
+            projectiles.push({
+              x: e.x, y: e.y + 6, vx: -3, vy: -2.5, life: 9999, w: 14, h: 14,
+              ptype: "pretzel", spinning: false, spinAngle: 0, landed: false
+            });
           }
         }
       }
 
       // Collision with player
       if (aabb(player, e)) {
-        // If player falling onto enemy (jumping on top)
         if (player.vy > 0 && player.y + player.h - e.y < STOMP_DEPTH_THRESHOLD) {
           e.alive = false;
           player.vy = JUMP_FORCE * BOUNCE_MULTIPLIER;
           score += 100;
           spawnPoof(e.x + e.w / 2, e.y + e.h / 2);
         } else {
-          // Player hit by enemy
           state = "dead"; player.alive = false;
           return;
         }
@@ -319,10 +562,34 @@
     // ── Update projectiles ──
     for (var pi = projectiles.length - 1; pi >= 0; pi--) {
       var pr = projectiles[pi];
+      if (pr.ptype === "pretzel" && pr.landed) {
+        // Pretzel stays spinning on the ground
+        pr.spinAngle += 0.15;
+        // Remove if way off screen behind camera
+        if (pr.x < camera.x - 200) { projectiles.splice(pi, 1); continue; }
+        if (aabb(player, pr)) {
+          state = "dead"; player.alive = false;
+          return;
+        }
+        continue;
+      }
       pr.x += pr.vx;
+      if (pr.ptype === "pretzel") {
+        pr.spinAngle = (pr.spinAngle || 0) + 0.2;
+      }
       pr.vy += 0.15;
       pr.y += pr.vy;
       pr.life--;
+      if (pr.ptype === "pretzel" && pr.y + pr.h >= GROUND_Y) {
+        // Pretzel lands and stays spinning
+        pr.y = GROUND_Y - pr.h;
+        pr.landed = true;
+        pr.spinning = true;
+        pr.vx = 0;
+        pr.vy = 0;
+        if (aabb(player, pr)) { state = "dead"; player.alive = false; return; }
+        continue;
+      }
       if (pr.life <= 0 || pr.y > CANVAS_H) { projectiles.splice(pi, 1); continue; }
       if (aabb(player, pr)) {
         state = "dead"; player.alive = false;
@@ -348,6 +615,78 @@
   }
 
   // ── DRAW ───────────────────────────────────────────────────
+
+  // ── Level select screen ────────────────────────────────────
+  function drawLevelSelect() {
+    // Background
+    var grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+    grad.addColorStop(0, "#0d0d1a");
+    grad.addColorStop(0.5, "#1a1a2e");
+    grad.addColorStop(1, "#16213e");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Title
+    ctx.fillStyle = "#f0c040";
+    ctx.font = "bold 36px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("PORCUPINE SPIKEY", CANVAS_W / 2, 70);
+    ctx.fillStyle = "#ccc";
+    ctx.font = "16px 'Courier New', monospace";
+    ctx.fillText("Select a Level", CANVAS_W / 2, 110);
+
+    // Level buttons
+    for (var i = 0; i < levelButtons.length; i++) {
+      var lb = levelButtons[i];
+      var selected = (i === levelSelectCursor);
+      // Button background
+      ctx.fillStyle = selected ? "#3a3a5e" : "#2a2a3e";
+      ctx.fillRect(lb.x, lb.y, lb.w, lb.h);
+      // Border
+      ctx.strokeStyle = selected ? "#f0c040" : "#555";
+      ctx.lineWidth = selected ? 3 : 1;
+      ctx.strokeRect(lb.x, lb.y, lb.w, lb.h);
+      // Level icon
+      if (i === 0) {
+        // Cave icon — brown rocks
+        ctx.fillStyle = "#4a3a2a";
+        ctx.fillRect(lb.x + 70, lb.y + 20, 60, 30);
+        ctx.fillStyle = "#3a2a1a";
+        ctx.beginPath();
+        ctx.moveTo(lb.x + 80, lb.y + 20);
+        ctx.lineTo(lb.x + 100, lb.y + 8);
+        ctx.lineTo(lb.x + 120, lb.y + 20);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // Ice icon — blue icicles
+        ctx.fillStyle = "#a0d4f0";
+        for (var ic = 0; ic < 3; ic++) {
+          ctx.beginPath();
+          ctx.moveTo(lb.x + 75 + ic * 20, lb.y + 15);
+          ctx.lineTo(lb.x + 80 + ic * 20, lb.y + 45);
+          ctx.lineTo(lb.x + 85 + ic * 20, lb.y + 15);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      // Label
+      ctx.fillStyle = selected ? "#f0c040" : "#ccc";
+      ctx.font = "bold 18px 'Courier New', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(lb.label, lb.x + lb.w / 2, lb.y + lb.h - 28);
+      ctx.font = "12px 'Courier New', monospace";
+      ctx.fillStyle = "#999";
+      ctx.fillText(lb.sub, lb.x + lb.w / 2, lb.y + lb.h - 10);
+    }
+
+    // Instructions
+    ctx.fillStyle = "#777";
+    ctx.font = "14px 'Courier New', monospace";
+    ctx.fillText("Use ARROW KEYS or CLICK to select — ENTER or SPACE to start", CANVAS_W / 2, 310);
+    ctx.textAlign = "left";
+  }
+
   function drawCaveBackground() {
     // Dark gradient background
     var grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
@@ -384,26 +723,114 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawIceCaveBackground() {
+    // Icy blue gradient background
+    var grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+    grad.addColorStop(0, "#0a1628");
+    grad.addColorStop(0.4, "#1a2a4e");
+    grad.addColorStop(1, "#1a3a5e");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Ceiling (icy)
+    rect(0, 0, CANVAS_W, 18, "#4a6a8a");
+    rect(0, 18, CANVAS_W, 4, "#6a8aaa");
+
+    // Static stalactites (ice colored)
+    for (var i = 0; i < stalactites.length; i++) {
+      var s = stalactites[i];
+      var sx = s.x - camera.x;
+      if (sx < -30 || sx > CANVAS_W + 30) continue;
+      ctx.fillStyle = "#7ab8d4";
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(sx - 6, 22);
+      ctx.lineTo(sx + 6, 22);
+      ctx.lineTo(sx, 22 + s.h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    // Dim background ice formations
+    ctx.globalAlpha = 0.1;
+    for (var rx = -((camera.x * 0.3) % 160); rx < CANVAS_W; rx += 160) {
+      rect(rx, 200, 60, 40, "#8ab8d4");
+      rect(rx + 80, 160, 40, 30, "#6a98b4");
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawIcicles() {
+    for (var i = 0; i < icicles.length; i++) {
+      var ic = icicles[i];
+      if (ic.fallen && ic.y + ic.h < 0) continue;
+      var ix = ic.x - camera.x;
+      if (ix < -20 || ix > CANVAS_W + 20) continue;
+      // Draw icicle as a triangle
+      ctx.fillStyle = ic.falling ? "#c0e8ff" : "#a0d4f0";
+      ctx.beginPath();
+      ctx.moveTo(ix - ic.w / 2, ic.y);
+      ctx.lineTo(ix + ic.w / 2, ic.y);
+      ctx.lineTo(ix, ic.y + ic.h);
+      ctx.closePath();
+      ctx.fill();
+      // Shine
+      ctx.strokeStyle = "#d8f0ff";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ix - 2, ic.y + 4);
+      ctx.lineTo(ix - 1, ic.y + ic.h * 0.6);
+      ctx.stroke();
+      // Warning shimmer when about to fall
+      if (ic.falling && !ic.fallen) {
+        ctx.globalAlpha = 0.4 + Math.sin(frameCount * 0.3) * 0.3;
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.moveTo(ix - ic.w / 2 + 2, ic.y + 2);
+        ctx.lineTo(ix + ic.w / 2 - 2, ic.y + 2);
+        ctx.lineTo(ix, ic.y + ic.h - 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
   function drawPlatforms() {
     for (var i = 0; i < platforms.length; i++) {
       var p = platforms[i];
       var px = p.x - camera.x;
       if (px + p.w < -20 || px > CANVAS_W + 20) continue;
-      if (p.h > 20) {
-        // Ground block
-        rect(px, p.y, p.w, 4, "#6a5a3a");   // grass-like top
-        rect(px, p.y + 4, p.w, p.h - 4, "#4a3a2a"); // dirt
-        // Texture dots
-        ctx.fillStyle = "#3a2a1a";
-        for (var dx = 8; dx < p.w; dx += 20) {
-          for (var dy = 12; dy < p.h - 8; dy += 16) {
-            ctx.fillRect(px + dx, p.y + dy, 3, 3);
+      if (currentLevel === 2) {
+        // Ice cave platforms
+        if (p.h > 20) {
+          rect(px, p.y, p.w, 4, "#8ab8d4");    // ice top
+          rect(px, p.y + 4, p.w, p.h - 4, "#4a6a8a"); // frozen rock
+          ctx.fillStyle = "#3a5a7a";
+          for (var dx = 8; dx < p.w; dx += 20) {
+            for (var dy = 12; dy < p.h - 8; dy += 16) {
+              ctx.fillRect(px + dx, p.y + dy, 3, 3);
+            }
           }
+        } else {
+          rect(px, p.y, p.w, p.h, "#6a9ab4");
+          rect(px + 2, p.y + 2, p.w - 4, 3, "#8abacf");
         }
       } else {
-        // Floating platform
-        rect(px, p.y, p.w, p.h, "#5a4a30");
-        rect(px + 2, p.y + 2, p.w - 4, 3, "#7a6a4a");
+        if (p.h > 20) {
+          rect(px, p.y, p.w, 4, "#6a5a3a");
+          rect(px, p.y + 4, p.w, p.h - 4, "#4a3a2a");
+          ctx.fillStyle = "#3a2a1a";
+          for (var dx2 = 8; dx2 < p.w; dx2 += 20) {
+            for (var dy2 = 12; dy2 < p.h - 8; dy2 += 16) {
+              ctx.fillRect(px + dx2, p.y + dy2, 3, 3);
+            }
+          }
+        } else {
+          rect(px, p.y, p.w, p.h, "#5a4a30");
+          rect(px + 2, p.y + 2, p.w - 4, 3, "#7a6a4a");
+        }
       }
     }
   }
@@ -610,6 +1037,138 @@
       // Spikey ball in hand
       drawSpikeyBall(ex - 6, ey + 10, 5);
     }
+
+    else if (e.type === "snowman") {
+      // Bottom ball
+      ctx.fillStyle = "#e8e8f0";
+      ctx.beginPath();
+      ctx.arc(ex + 18, ey + 34, 14, 0, Math.PI * 2);
+      ctx.fill();
+      // Middle ball
+      ctx.fillStyle = "#f0f0f8";
+      ctx.beginPath();
+      ctx.arc(ex + 18, ey + 18, 10, 0, Math.PI * 2);
+      ctx.fill();
+      // Head
+      ctx.fillStyle = "#f5f5ff";
+      ctx.beginPath();
+      ctx.arc(ex + 18, ey + 6, 7, 0, Math.PI * 2);
+      ctx.fill();
+      // Eyes (coal)
+      ctx.fillStyle = "#111";
+      ctx.beginPath(); ctx.arc(ex + 15, ey + 4, 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 21, ey + 4, 1.5, 0, Math.PI * 2); ctx.fill();
+      // Carrot nose
+      ctx.fillStyle = "#f08020";
+      ctx.beginPath();
+      ctx.moveTo(ex + 18, ey + 6);
+      ctx.lineTo(ex + 10, ey + 8);
+      ctx.lineTo(ex + 18, ey + 9);
+      ctx.closePath();
+      ctx.fill();
+      // Hat (top hat)
+      ctx.fillStyle = "#222";
+      ctx.fillRect(ex + 10, ey - 6, 16, 4);
+      ctx.fillRect(ex + 12, ey - 16, 12, 12);
+      // Arm (stick) throwing
+      ctx.strokeStyle = "#5a3a1a";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ex + 4, ey + 18);
+      ctx.lineTo(ex - 8, ey + 10);
+      ctx.stroke();
+      // Snowball in hand
+      ctx.fillStyle = "#d8e8ff";
+      ctx.beginPath();
+      ctx.arc(ex - 10, ey + 8, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    else if (e.type === "stingray") {
+      // Body (flat diamond/wing shape)
+      ctx.fillStyle = "#5a7a9a";
+      ctx.beginPath();
+      ctx.moveTo(ex + 22, ey);           // top
+      ctx.lineTo(ex + 44, ey + 10);      // right
+      ctx.lineTo(ex + 22, ey + 20);      // bottom
+      ctx.lineTo(ex, ey + 10);           // left
+      ctx.closePath();
+      ctx.fill();
+      // Inner body lighter
+      ctx.fillStyle = "#7a9aba";
+      ctx.beginPath();
+      ctx.moveTo(ex + 22, ey + 4);
+      ctx.lineTo(ex + 36, ey + 10);
+      ctx.lineTo(ex + 22, ey + 16);
+      ctx.lineTo(ex + 8, ey + 10);
+      ctx.closePath();
+      ctx.fill();
+      // Tail
+      ctx.strokeStyle = "#4a6a8a";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ex + 22, ey + 20);
+      ctx.quadraticCurveTo(ex + 22, ey + 30, ex + 16, ey + 34);
+      ctx.stroke();
+      // Tail barb
+      ctx.fillStyle = "#e04040";
+      ctx.beginPath();
+      ctx.moveTo(ex + 16, ey + 34);
+      ctx.lineTo(ex + 12, ey + 30);
+      ctx.lineTo(ex + 14, ey + 36);
+      ctx.closePath();
+      ctx.fill();
+      // Eyes
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 18, ey + 8, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 26, ey + 8, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#111";
+      ctx.beginPath(); ctx.arc(ex + 18, ey + 8, 0.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 26, ey + 8, 0.8, 0, Math.PI * 2); ctx.fill();
+    }
+
+    else if (e.type === "spiky_guy") {
+      // Body (round, spiky)
+      ctx.fillStyle = "#8a4a2a";
+      ctx.beginPath();
+      ctx.arc(ex + 17, ey + 22, 14, 0, Math.PI * 2);
+      ctx.fill();
+      // Spikes around body
+      ctx.fillStyle = "#b06030";
+      for (var sp2 = 0; sp2 < 8; sp2++) {
+        var ang = (sp2 / 8) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(ex + 17 + Math.cos(ang) * 12, ey + 22 + Math.sin(ang) * 12);
+        ctx.lineTo(ex + 17 + Math.cos(ang) * 20, ey + 22 + Math.sin(ang) * 20);
+        ctx.lineTo(ex + 17 + Math.cos(ang + 0.3) * 12, ey + 22 + Math.sin(ang + 0.3) * 12);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // Face
+      ctx.fillStyle = "#c07040";
+      ctx.beginPath();
+      ctx.arc(ex + 17, ey + 20, 8, 0, Math.PI * 2);
+      ctx.fill();
+      // Angry eyes
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 13, ey + 18, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 21, ey + 18, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#900";
+      ctx.beginPath(); ctx.arc(ex + 13, ey + 18, 1, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 21, ey + 18, 1, 0, Math.PI * 2); ctx.fill();
+      // Angry brow
+      ctx.strokeStyle = "#5a2a10";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ex + 10, ey + 14);
+      ctx.lineTo(ex + 15, ey + 15);
+      ctx.moveTo(ex + 24, ey + 14);
+      ctx.lineTo(ex + 19, ey + 15);
+      ctx.stroke();
+      // Legs
+      rect(ex + 8, ey + 34, 5, 4, "#6a3a1a");
+      rect(ex + 21, ey + 34, 5, 4, "#6a3a1a");
+    }
   }
 
   function drawSpikeyBall(x, y, r) {
@@ -628,10 +1187,65 @@
     }
   }
 
+  function drawSnowball(x, y, r) {
+    ctx.fillStyle = "#d8e8ff";
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    // Snow shine
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(x - 1, y - 1, r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawPretzel(x, y, r, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle || 0);
+    // Pretzel shape: figure-eight / twisted loop
+    ctx.strokeStyle = "#c89040";
+    ctx.fillStyle = "#d8a050";
+    ctx.lineWidth = 3;
+    // Left loop
+    ctx.beginPath();
+    ctx.arc(-r * 0.4, 0, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Right loop
+    ctx.beginPath();
+    ctx.arc(r * 0.4, 0, r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    // Cross in center
+    ctx.strokeStyle = "#b07830";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-r * 0.2, -r * 0.3);
+    ctx.lineTo(r * 0.2, r * 0.3);
+    ctx.moveTo(r * 0.2, -r * 0.3);
+    ctx.lineTo(-r * 0.2, r * 0.3);
+    ctx.stroke();
+    // Salt dots
+    ctx.fillStyle = "#f0e8d0";
+    ctx.fillRect(-r * 0.3, -r * 0.2, 2, 2);
+    ctx.fillRect(r * 0.2, r * 0.1, 2, 2);
+    ctx.fillRect(0, -r * 0.4, 2, 2);
+    ctx.restore();
+  }
+
   function drawProjectiles() {
     for (var i = 0; i < projectiles.length; i++) {
       var pr = projectiles[i];
-      drawSpikeyBall(pr.x - camera.x, pr.y, 5);
+      var prx = pr.x - camera.x;
+      if (prx < -30 || prx > CANVAS_W + 30) continue;
+      if (pr.ptype === "snowball") {
+        drawSnowball(prx, pr.y, 6);
+      } else if (pr.ptype === "pretzel") {
+        drawPretzel(prx, pr.y, 8, pr.spinAngle || 0);
+      } else {
+        drawSpikeyBall(prx, pr.y, 5);
+      }
     }
   }
 
@@ -665,9 +1279,21 @@
   }
 
   function drawHUD() {
+    // Back button
+    ctx.fillStyle = "rgba(60,60,80,0.7)";
+    ctx.fillRect(backButton.x, backButton.y, backButton.w, backButton.h);
+    ctx.strokeStyle = "#888";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(backButton.x, backButton.y, backButton.w, backButton.h);
+    ctx.fillStyle = "#ccc";
+    ctx.font = "12px 'Courier New', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("◀ BACK", backButton.x + backButton.w / 2, backButton.y + 19);
+    ctx.textAlign = "left";
+
     ctx.fillStyle = "#f0c040";
     ctx.font = "bold 16px 'Courier New', monospace";
-    ctx.fillText("Score: " + score, 16, 30);
+    ctx.fillText("Score: " + score, 100, 30);
 
     // Progress bar
     var progress = Math.min(player.x / LEVEL_END, 1);
@@ -695,20 +1321,29 @@
   function loop() {
     update();
 
-    // Draw
-    drawCaveBackground();
-    drawPlatforms();
-    drawFinish();
-    for (var i = 0; i < enemies.length; i++) drawEnemy(enemies[i]);
-    drawProjectiles();
-    drawPlayer();
-    drawParticles();
-    drawHUD();
+    if (state === "level_select") {
+      drawLevelSelect();
+    } else {
+      // Draw
+      if (currentLevel === 2) {
+        drawIceCaveBackground();
+      } else {
+        drawCaveBackground();
+      }
+      drawPlatforms();
+      if (currentLevel === 2) drawIcicles();
+      drawFinish();
+      for (var i = 0; i < enemies.length; i++) drawEnemy(enemies[i]);
+      drawProjectiles();
+      drawPlayer();
+      drawParticles();
+      drawHUD();
 
-    if (state === "dead") {
-      drawOverlay("GAME OVER", "Press SPACE or TAP to retry");
-    } else if (state === "won") {
-      drawOverlay("LEVEL COMPLETE!", "Score: " + score + "  —  Press SPACE or TAP to replay");
+      if (state === "dead") {
+        drawOverlay("GAME OVER", "Press SPACE or TAP to retry — ESC for levels");
+      } else if (state === "won") {
+        drawOverlay("LEVEL COMPLETE!", "Score: " + score + "  —  Press SPACE or TAP for level select");
+      }
     }
 
     requestAnimationFrame(loop);
@@ -718,7 +1353,7 @@
 
   // Expose read-only game state for testing
   window._gameState = function () {
-    return { state: state, playerX: player.x, playerAlive: player.alive, score: score };
+    return { state: state, playerX: player.x, playerAlive: player.alive, score: score, currentLevel: currentLevel };
   };
 })();
 </script>
