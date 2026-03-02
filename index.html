@@ -212,7 +212,7 @@
       icicles.push({
         x: ix, baseY: 22, y: 22, h: 30 + Math.floor(iRand() * 30),
         falling: false, fallen: false, vy: 0,
-        w: 12
+        w: 12, opacity: 1
       });
     }
   }
@@ -358,7 +358,7 @@
     player.alive = true; player.won = false;
     camera.x = 0; state = "playing"; deathTimer = 0; score = 0;
     enemies.length = 0; projectiles.length = 0; particles.length = 0;
-    icicles.forEach(function (ic) { ic.falling = false; ic.fallen = false; ic.y = ic.baseY; ic.vy = 0; });
+    icicles.forEach(function (ic) { ic.falling = false; ic.fallen = false; ic.y = ic.baseY; ic.vy = 0; ic.opacity = 1; });
     spawnEnemies();
   }
 
@@ -467,7 +467,10 @@
     if (currentLevel === 2) {
       for (var ii = 0; ii < icicles.length; ii++) {
         var ic = icicles[ii];
-        if (ic.fallen) continue;
+        if (ic.fallen) {
+          ic.opacity = Math.max(0, ic.opacity - 0.005);
+          continue;
+        }
         // Trigger when player is approaching from the left, far enough that icicle
         // always lands well before the player arrives (distraction only)
         var dist = ic.x - player.x;
@@ -773,8 +776,10 @@
     for (var i = 0; i < icicles.length; i++) {
       var ic = icicles[i];
       if (ic.fallen && ic.y + ic.h < 0) continue;
+      if (ic.opacity <= 0) continue;
       var ix = ic.x - camera.x;
       if (ix < -20 || ix > CANVAS_W + 20) continue;
+      ctx.globalAlpha = ic.opacity;
       // Draw icicle as a triangle
       ctx.fillStyle = ic.falling ? "#c0e8ff" : "#a0d4f0";
       ctx.beginPath();
@@ -792,7 +797,7 @@
       ctx.stroke();
       // Warning shimmer when about to fall
       if (ic.falling && !ic.fallen) {
-        ctx.globalAlpha = 0.4 + Math.sin(frameCount * 0.3) * 0.3;
+        ctx.globalAlpha = ic.opacity * (0.4 + Math.sin(frameCount * 0.3) * 0.3);
         ctx.fillStyle = "#fff";
         ctx.beginPath();
         ctx.moveTo(ix - ic.w / 2 + 2, ic.y + 2);
@@ -800,8 +805,8 @@
         ctx.lineTo(ix, ic.y + ic.h - 4);
         ctx.closePath();
         ctx.fill();
-        ctx.globalAlpha = 1;
       }
+      ctx.globalAlpha = 1;
     }
   }
 
