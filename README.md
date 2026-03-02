@@ -10,7 +10,7 @@ Our oldest kid helped provide content ideas. 🙂
 
 1. Open the [hosted version](https://kendaleiv.github.io/porcupine-spikey/) or `index.html` in any modern web browser
 2. The porcupine automatically walks forward through the level
-3. Press **SPACEBAR** to jump
+3. Press **SPACEBAR** or **TAP** the screen to jump
 4. Jump **on top** of enemies to defeat them — the porcupine's spikes do the damage!
 5. You can also jump **over** enemies to avoid them
 6. Reach the flag at the end of the level to win!
