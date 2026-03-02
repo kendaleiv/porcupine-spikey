@@ -74,9 +74,17 @@
   });
   document.addEventListener("keyup", function (e) { keys[e.code] = false; });
 
-  // Touch input (tap to jump on mobile)
+  // Touch input (tap to jump on mobile, also set mouseClick for UI)
   canvas.addEventListener("touchstart", function (e) {
     e.preventDefault();
+    var touch = e.touches[0];
+    var r = canvas.getBoundingClientRect();
+    var scaleX = CANVAS_W / r.width;
+    var scaleY = CANVAS_H / r.height;
+    mouseClick = {
+      x: (touch.clientX - r.left) * scaleX,
+      y: (touch.clientY - r.top) * scaleY
+    };
     keys["Space"] = true;
   });
   canvas.addEventListener("touchend", function (e) {
@@ -338,7 +346,7 @@
     { x: 160, y: 160, w: 200, h: 100, label: "Level 1", sub: "Cave Adventure" },
     { x: 440, y: 160, w: 200, h: 100, label: "Level 2", sub: "Ice Cave" }
   ];
-  var backButton = { x: 10, y: 10, w: 80, h: 28 };
+  var backButton = { x: 10, y: 10, w: 100, h: 36 };
 
   // ── Start a level ──────────────────────────────────────────
   function startLevel(level) {
@@ -357,6 +365,7 @@
   function goToLevelSelect() {
     state = "level_select";
     mouseClick = null;
+    keys["Space"] = false;
   }
 
   // ── Reset ──────────────────────────────────────────────────
@@ -380,6 +389,7 @@
           }
         }
         mouseClick = null;
+        keys["Space"] = false;
       }
       // Keyboard navigation
       if (keys["ArrowLeft"] || keys["KeyA"]) { levelSelectCursor = 0; keys["ArrowLeft"] = false; keys["KeyA"] = false; }
@@ -1288,14 +1298,14 @@
     ctx.lineWidth = 1;
     ctx.strokeRect(backButton.x, backButton.y, backButton.w, backButton.h);
     ctx.fillStyle = "#ccc";
-    ctx.font = "12px 'Courier New', monospace";
+    ctx.font = "14px 'Courier New', monospace";
     ctx.textAlign = "center";
-    ctx.fillText("◀ BACK", backButton.x + backButton.w / 2, backButton.y + 19);
+    ctx.fillText("◀ BACK", backButton.x + backButton.w / 2, backButton.y + 23);
     ctx.textAlign = "left";
 
     ctx.fillStyle = "#f0c040";
     ctx.font = "bold 16px 'Courier New', monospace";
-    ctx.fillText("Score: " + score, 100, 30);
+    ctx.fillText("Score: " + score, 120, 30);
 
     // Progress bar
     var progress = Math.min(player.x / LEVEL_END, 1);
