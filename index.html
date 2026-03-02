@@ -128,7 +128,7 @@
   // ── Stalactites (level 1 cave ceiling decoration) ──────────
   var stalactites = [];
 
-  // ── Icicles (level 2 falling hazards) ──────────────────────
+  // ── Icicles (level 2 falling distractions) ─────────────────
   var icicles = [];
 
   // ── Level builders ─────────────────────────────────────────
@@ -463,13 +463,15 @@
     player.frameTimer++;
     if (player.frameTimer > 6) { player.frame = (player.frame + 1) % 4; player.frameTimer = 0; }
 
-    // ── Update falling icicles (level 2) ──
+    // ── Update falling icicles (level 2) — purely decorative distractions ──
     if (currentLevel === 2) {
       for (var ii = 0; ii < icicles.length; ii++) {
         var ic = icicles[ii];
         if (ic.fallen) continue;
-        // Trigger when player is nearby horizontally
-        if (!ic.falling && Math.abs(player.x - ic.x) < 120) {
+        // Trigger when player is approaching from the left, far enough that icicle
+        // always lands well before the player arrives (distraction only)
+        var dist = ic.x - player.x;
+        if (!ic.falling && dist > 0 && dist < 300) {
           ic.falling = true;
         }
         if (ic.falling) {
@@ -481,12 +483,6 @@
             ic.y = GROUND_Y - ic.h;
             ic.fallen = true;
             ic.vy = 0;
-          }
-          // Check collision with player
-          var icicleBox = { x: ic.x - ic.w / 2, y: ic.y, w: ic.w, h: ic.h };
-          if (aabb(player, icicleBox)) {
-            state = "dead"; player.alive = false;
-            return;
           }
         }
       }
