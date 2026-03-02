@@ -393,12 +393,14 @@
     }
 
     if (state === "dead") {
+      mouseClick = null;
       deathTimer++;
       if (deathTimer > 90 && keys["Space"]) resetGame();
       if (keys["Escape"]) { keys["Escape"] = false; goToLevelSelect(); }
       return;
     }
     if (state === "won") {
+      mouseClick = null;
       if (keys["Space"]) goToLevelSelect();
       return;
     }
