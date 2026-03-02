@@ -9,13 +9,16 @@ Our oldest kid helped provide content ideas. 🙂
 ## How to Play
 
 1. Open the [hosted version](https://kendaleiv.github.io/porcupine-spikey/) or `index.html` in any modern web browser
-2. The porcupine automatically walks forward through the level
-3. Press **SPACEBAR** to jump
-4. Jump **on top** of enemies to defeat them — the porcupine's spikes do the damage!
-5. You can also jump **over** enemies to avoid them
-6. Reach the flag at the end of the level to win!
+2. Select a level from the level select screen
+3. The porcupine automatically walks forward through the level
+4. Press **SPACEBAR** or **TAP** the screen to jump
+5. Jump **on top** of enemies to defeat them — the porcupine's spikes do the damage!
+6. You can also jump **over** enemies to avoid them
+7. Reach the flag at the end of the level to win!
 
 ## Enemies
+
+### Level 1 — Cave Adventure
 
 | Enemy | Description |
 |-------|-------------|
@@ -23,6 +26,16 @@ Our oldest kid helped provide content ideas. 🙂
 | 🐧 **Penguin** | Slides toward you — time your jump carefully |
 | 🦕 **Dinosaur** | Large and stationary — jump over or stomp |
 | 🧙 **Spikey Ball Thrower** | Throws arcing spikey balls at you — dodge or stomp |
+
+### Level 2 — Ice Cave
+
+All Level 1 enemies plus:
+
+| Enemy | Description |
+|-------|-------------|
+| ⛄ **Snowman** | Throws snowballs at you — dodge or stomp |
+| 🦈 **Stingray** | Glides toward you with a wave motion — time your jump carefully |
+| 🦔 **Spiky Guy** | Throws pretzels that land on the ground — dodge or stomp |
 
 ## Running Locally
 
