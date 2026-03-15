@@ -49,7 +49,7 @@ All Level 1 enemies plus:
 
 | Enemy / Obstacle | Description |
 |------------------|-------------|
-| 🧱 **Brick Wall** | Tall wall — jump on top or over it, running into it is deadly |
+| 🧱 **Brick Wall** | Tall wall — jump on top or over it |
 | 🏠 **Lighthouse** | Tall tower — jump on top or over it to avoid collision |
 | 🖼️ **Rope Picture** | Picture on a rope that drops from the ceiling to squish you — jump over it |
 | 🦌 **Reindeer** | Stationary — jump over or stomp |
