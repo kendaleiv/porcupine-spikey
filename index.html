@@ -131,6 +131,9 @@
   // ── Icicles (level 2 falling distractions) ─────────────────
   var icicles = [];
 
+  // ── Rope pictures (level 3 falling hazards) ────────────────
+  var ropePictures = [];
+
   // ── Level builders ─────────────────────────────────────────
   function buildLevel1() {
     platforms.length = 0;
@@ -213,6 +216,55 @@
         x: ix, baseY: 22, y: 22, h: 30 + Math.floor(iRand() * 30),
         falling: false, fallen: false, vy: 0,
         w: 12, opacity: 1
+      });
+    }
+  }
+
+  function buildLevel3() {
+    platforms.length = 0;
+    stalactites.length = 0;
+    icicles.length = 0;
+    ropePictures.length = 0;
+    var gx = 0;
+    var seed = 101;
+    function seededRandom() {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    }
+    while (gx < LEVEL_END + CANVAS_W) {
+      var gap = false;
+      if (gx > 800 && gx < LEVEL_END - 400 && seededRandom() < 0.09) {
+        gap = true;
+      }
+      if (!gap) {
+        platforms.push({ x: gx, y: GROUND_Y, w: 80, h: 60 });
+      }
+      gx += 80;
+    }
+    var floats = [
+      [340, 255], [580, 215], [920, 245], [1250, 195],
+      [1550, 255], [1850, 175], [2150, 235], [2550, 195],
+      [2850, 255], [3150, 175], [3450, 225], [3850, 195],
+      [4150, 255], [4450, 185], [4750, 235], [5050, 195],
+      [5350, 255], [5650, 175], [5950, 215], [6250, 255]
+    ];
+    for (var i = 0; i < floats.length; i++) {
+      platforms.push({ x: floats[i][0], y: floats[i][1], w: 120, h: 16 });
+    }
+    // Hanging vines (stalactite data, drawn as vines)
+    var sSeed = 170;
+    function sRand() { sSeed = (sSeed * 16807) % 2147483647; return (sSeed - 1) / 2147483646; }
+    for (var sx = 70; sx < LEVEL_END; sx += 150 + Math.floor(sRand() * 130)) {
+      stalactites.push({ x: sx, h: 28 + Math.floor(sRand() * 45) });
+    }
+    // Rope pictures — harmful falling obstacles
+    var rSeed = 400;
+    function rRand() { rSeed = (rSeed * 16807) % 2147483647; return (rSeed - 1) / 2147483646; }
+    for (var rx = 600; rx < LEVEL_END - 300; rx += 350 + Math.floor(rRand() * 300)) {
+      ropePictures.push({
+        x: rx, baseY: 20, y: 20, h: 35 + Math.floor(rRand() * 25),
+        falling: false, fallen: false, vy: 0,
+        w: 18, opacity: 1
       });
     }
   }
@@ -312,9 +364,58 @@
     }
   }
 
+  function spawnEnemiesLevel3() {
+    var defs = [
+      { x: 800, type: "brick_wall" },
+      { x: 1100, type: "reindeer" },
+      { x: 1400, type: "lighthouse" },
+      { x: 1700, type: "turkey" },
+      { x: 1950, type: "hurt_flag" },
+      { x: 2200, type: "spiky_guy" },
+      { x: 2500, type: "onion_ring" },
+      { x: 2750, type: "sock" },
+      { x: 3000, type: "dog" },
+      { x: 3250, type: "brick_wall" },
+      { x: 3500, type: "reindeer" },
+      { x: 3750, type: "turkey" },
+      { x: 4000, type: "hurt_flag" },
+      { x: 4200, type: "lighthouse" },
+      { x: 4500, type: "spiky_guy" },
+      { x: 4750, type: "dog" },
+      { x: 5000, type: "onion_ring" },
+      { x: 5200, type: "sock" },
+      { x: 5400, type: "reindeer" },
+      { x: 5650, type: "turkey" },
+      { x: 5900, type: "brick_wall" },
+      { x: 6100, type: "hurt_flag" }
+    ];
+    for (var i = 0; i < defs.length; i++) {
+      var d = defs[i];
+      var ew, eh;
+      if (d.type === "brick_wall")      { ew = 40; eh = 60; }
+      else if (d.type === "lighthouse") { ew = 30; eh = 70; }
+      else if (d.type === "reindeer")   { ew = 44; eh = 44; }
+      else if (d.type === "spiky_guy")  { ew = 34; eh = 38; }
+      else if (d.type === "hurt_flag")  { ew = 24; eh = 40; }
+      else if (d.type === "turkey")     { ew = 36; eh = 34; }
+      else if (d.type === "onion_ring") { ew = 22; eh = 22; }
+      else if (d.type === "sock")       { ew = 28; eh = 12; }
+      else if (d.type === "dog")        { ew = 40; eh = 32; }
+      else                              { ew = 32; eh = 38; }
+      enemies.push({
+        x: d.x, y: GROUND_Y - eh, w: ew, h: eh,
+        type: d.type, alive: true,
+        vx: 0,
+        activated: d.type !== "turkey" && d.type !== "dog",
+        shootTimer: d.type === "spiky_guy" ? 120 : 0
+      });
+    }
+  }
+
   function spawnEnemies() {
     if (currentLevel === 1) spawnEnemiesLevel1();
-    else spawnEnemiesLevel2();
+    else if (currentLevel === 2) spawnEnemiesLevel2();
+    else spawnEnemiesLevel3();
   }
   spawnEnemies();
 
@@ -343,8 +444,9 @@
 
   // ── Level selector button areas ────────────────────────────
   var levelButtons = [
-    { x: 160, y: 160, w: 200, h: 100, label: "Level 1", sub: "Cave Adventure" },
-    { x: 440, y: 160, w: 200, h: 100, label: "Level 2", sub: "Ice Cave" }
+    { x: 80, y: 160, w: 180, h: 100, label: "Level 1", sub: "Cave Adventure" },
+    { x: 300, y: 160, w: 180, h: 100, label: "Level 2", sub: "Ice Cave" },
+    { x: 520, y: 160, w: 180, h: 100, label: "Level 3", sub: "Grass Cave" }
   ];
   var backButton = { x: 10, y: 10, w: 100, h: 36 };
 
@@ -362,13 +464,15 @@
   function startLevel(level) {
     currentLevel = level;
     if (level === 1) buildLevel1();
-    else buildLevel2();
+    else if (level === 2) buildLevel2();
+    else buildLevel3();
     player.x = 80; player.y = GROUND_Y - 36;
     player.vy = 0; player.onGround = false;
     player.alive = true; player.won = false;
     camera.x = 0; state = "playing"; deathTimer = 0; score = 0;
     enemies.length = 0; projectiles.length = 0; particles.length = 0;
     icicles.forEach(function (ic) { ic.falling = false; ic.fallen = false; ic.y = ic.baseY; ic.vy = 0; ic.opacity = 1; });
+    ropePictures.forEach(function (rp) { rp.falling = false; rp.fallen = false; rp.y = rp.baseY; rp.vy = 0; rp.opacity = 1; });
     spawnEnemies();
   }
 
@@ -525,6 +629,36 @@
       }
     }
 
+    // ── Update rope pictures (level 3) — harmful falling obstacles ──
+    if (currentLevel === 3) {
+      for (var ri = 0; ri < ropePictures.length; ri++) {
+        var rp = ropePictures[ri];
+        if (rp.fallen) {
+          rp.opacity = Math.max(0, rp.opacity - 0.02);
+          continue;
+        }
+        var rdist = rp.x - player.x;
+        if (!rp.falling && rdist > 0 && rdist < 250) {
+          rp.falling = true;
+        }
+        if (rp.falling) {
+          rp.vy += 0.5;
+          rp.y += rp.vy;
+          // Check collision with player
+          if (player.alive && player.x + player.w > rp.x - rp.w / 2 && player.x < rp.x + rp.w / 2 &&
+              player.y + player.h > rp.y && player.y < rp.y + rp.h) {
+            state = "dead"; player.alive = false;
+            return;
+          }
+          if (rp.y + rp.h >= GROUND_Y) {
+            rp.y = GROUND_Y - rp.h;
+            rp.fallen = true;
+            rp.vy = 0;
+          }
+        }
+      }
+    }
+
     // ── Update enemies ──
     for (var ei = 0; ei < enemies.length; ei++) {
       var e = enemies[ei];
@@ -546,6 +680,22 @@
         }
       }
 
+      // Activate turkeys when near screen
+      if (!e.activated && e.type === "turkey") {
+        if (e.x - camera.x < CANVAS_W + 40) {
+          e.activated = true;
+          e.vx = -2.5;
+        }
+      }
+
+      // Activate dogs when near screen
+      if (!e.activated && e.type === "dog") {
+        if (e.x - camera.x < CANVAS_W + 40) {
+          e.activated = true;
+          e.vx = -3;
+        }
+      }
+
       // Penguin slides once activated
       if (e.type === "penguin" && e.activated) {
         e.x += e.vx;
@@ -555,6 +705,14 @@
         e.x += e.vx;
         // Gentle wave motion
         e.y = (GROUND_Y - e.h) + Math.sin(frameCount * 0.05 + e.x * 0.01) * 15;
+      }
+      // Turkey charges toward player
+      if (e.type === "turkey" && e.activated) {
+        e.x += e.vx;
+      }
+      // Dog runs toward player
+      if (e.type === "dog" && e.activated) {
+        e.x += e.vx;
       }
       // Thrower shoots only when on screen
       if (e.type === "thrower") {
@@ -592,11 +750,21 @@
 
       // Collision with player
       if (aabb(player, e)) {
+        // Hurt flags always hurt — can't stomp them
+        if (e.type === "hurt_flag") {
+          state = "dead"; player.alive = false;
+          return;
+        }
         if (player.vy > 0 && player.y + player.h - e.y < STOMP_DEPTH_THRESHOLD) {
-          e.alive = false;
-          player.vy = JUMP_FORCE * BOUNCE_MULTIPLIER;
-          score += 100;
-          spawnPoof(e.x + e.w / 2, e.y + e.h / 2);
+          if (e.type === "brick_wall" || e.type === "lighthouse") {
+            // Land on top — bounce off, obstacle stays
+            player.vy = JUMP_FORCE * BOUNCE_MULTIPLIER;
+          } else {
+            e.alive = false;
+            player.vy = JUMP_FORCE * BOUNCE_MULTIPLIER;
+            score += 100;
+            spawnPoof(e.x + e.w / 2, e.y + e.h / 2);
+          }
         } else {
           state = "dead"; player.alive = false;
           return;
@@ -695,25 +863,45 @@
       if (i === 0) {
         // Cave icon — brown rocks
         ctx.fillStyle = "#4a3a2a";
-        ctx.fillRect(lb.x + 70, lb.y + 20, 60, 30);
+        ctx.fillRect(lb.x + 60, lb.y + 20, 60, 30);
         ctx.fillStyle = "#3a2a1a";
         ctx.beginPath();
-        ctx.moveTo(lb.x + 80, lb.y + 20);
-        ctx.lineTo(lb.x + 100, lb.y + 8);
-        ctx.lineTo(lb.x + 120, lb.y + 20);
+        ctx.moveTo(lb.x + 70, lb.y + 20);
+        ctx.lineTo(lb.x + 90, lb.y + 8);
+        ctx.lineTo(lb.x + 110, lb.y + 20);
         ctx.closePath();
         ctx.fill();
-      } else {
+      } else if (i === 1) {
         // Ice icon — blue icicles
         ctx.fillStyle = "#a0d4f0";
         for (var ic = 0; ic < 3; ic++) {
           ctx.beginPath();
-          ctx.moveTo(lb.x + 75 + ic * 20, lb.y + 15);
-          ctx.lineTo(lb.x + 80 + ic * 20, lb.y + 45);
-          ctx.lineTo(lb.x + 85 + ic * 20, lb.y + 15);
+          ctx.moveTo(lb.x + 65 + ic * 20, lb.y + 15);
+          ctx.lineTo(lb.x + 70 + ic * 20, lb.y + 45);
+          ctx.lineTo(lb.x + 75 + ic * 20, lb.y + 15);
           ctx.closePath();
           ctx.fill();
         }
+      } else {
+        // Grass cave icon — green grass and vines
+        ctx.fillStyle = "#3a5a2a";
+        ctx.fillRect(lb.x + 60, lb.y + 30, 60, 20);
+        ctx.fillStyle = "#5a8a3a";
+        for (var gc = 0; gc < 5; gc++) {
+          ctx.beginPath();
+          ctx.moveTo(lb.x + 62 + gc * 14, lb.y + 30);
+          ctx.lineTo(lb.x + 69 + gc * 14, lb.y + 18);
+          ctx.lineTo(lb.x + 76 + gc * 14, lb.y + 30);
+          ctx.closePath();
+          ctx.fill();
+        }
+        // Vine
+        ctx.strokeStyle = "#4a8a3a";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(lb.x + 90, lb.y + 10);
+        ctx.quadraticCurveTo(lb.x + 94, lb.y + 20, lb.x + 90, lb.y + 30);
+        ctx.stroke();
       }
       // Label
       ctx.fillStyle = selected ? "#f0c040" : "#ccc";
@@ -938,6 +1126,80 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawGrassCaveBackground() {
+    // Earthy green gradient background
+    var grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+    grad.addColorStop(0, "#1a2e0d");
+    grad.addColorStop(0.4, "#2e3a1a");
+    grad.addColorStop(1, "#1a3a0e");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Ceiling (earthy with moss)
+    rect(0, 0, CANVAS_W, 18, "#3a4a2a");
+    rect(0, 18, CANVAS_W, 4, "#4a5a3a");
+
+    // Hanging vines (stalactites drawn as vines)
+    for (var i = 0; i < stalactites.length; i++) {
+      var s = stalactites[i];
+      var sx = s.x - camera.x;
+      if (sx < -30 || sx > CANVAS_W + 30) continue;
+      ctx.strokeStyle = "#3a6a2a";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx, 22);
+      ctx.quadraticCurveTo(sx + 4, 22 + s.h * 0.5, sx, 22 + s.h);
+      ctx.stroke();
+      // Leaf at tip
+      ctx.fillStyle = "#4a8a3a";
+      ctx.beginPath();
+      ctx.ellipse(sx, 22 + s.h, 4, 2, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Dim background moss/rocks
+    ctx.globalAlpha = 0.15;
+    for (var rx = -((camera.x * 0.3) % 160); rx < CANVAS_W; rx += 160) {
+      rect(rx, 200, 60, 40, "#6a8a5a");
+      rect(rx + 80, 160, 40, 30, "#5a7a4a");
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawRopePictures() {
+    for (var i = 0; i < ropePictures.length; i++) {
+      var rp = ropePictures[i];
+      if (rp.fallen && rp.opacity <= 0) continue;
+      var rpx = rp.x - camera.x;
+      if (rpx < -30 || rpx > CANVAS_W + 30) continue;
+      ctx.globalAlpha = rp.opacity;
+      // Rope from ceiling
+      ctx.strokeStyle = "#8a7a5a";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(rpx, 22);
+      ctx.lineTo(rpx, rp.y);
+      ctx.stroke();
+      // Picture frame
+      ctx.fillStyle = "#5a3a1a";
+      ctx.fillRect(rpx - rp.w / 2 - 2, rp.y, rp.w + 4, rp.h);
+      // Picture canvas (landscape painting)
+      ctx.fillStyle = "#6a9a4a";
+      ctx.fillRect(rpx - rp.w / 2 + 1, rp.y + 3, rp.w - 2, rp.h - 6);
+      // Sky in picture
+      ctx.fillStyle = "#88bbee";
+      ctx.fillRect(rpx - rp.w / 2 + 1, rp.y + 3, rp.w - 2, (rp.h - 6) * 0.4);
+      // Warning shimmer when falling
+      if (rp.falling && !rp.fallen) {
+        ctx.globalAlpha = rp.opacity * (0.5 + Math.sin(frameCount * 0.3) * 0.3);
+        ctx.strokeStyle = "#ff4444";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(rpx - rp.w / 2 - 2, rp.y, rp.w + 4, rp.h);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
   function drawIcicles() {
     for (var i = 0; i < icicles.length; i++) {
       var ic = icicles[i];
@@ -995,6 +1257,31 @@
         } else {
           rect(px, p.y, p.w, p.h, "#6a9ab4");
           rect(px + 2, p.y + 2, p.w - 4, 3, "#8abacf");
+        }
+      } else if (currentLevel === 3) {
+        // Grass cave platforms
+        if (p.h > 20) {
+          rect(px, p.y, p.w, 4, "#5a8a3a");    // grass top
+          rect(px, p.y + 4, p.w, p.h - 4, "#3a5a2a"); // earthy rock
+          ctx.fillStyle = "#2a4a1a";
+          for (var dx3 = 8; dx3 < p.w; dx3 += 20) {
+            for (var dy3 = 12; dy3 < p.h - 8; dy3 += 16) {
+              ctx.fillRect(px + dx3, p.y + dy3, 3, 3);
+            }
+          }
+          // Grass tufts on top
+          ctx.fillStyle = "#6aaa4a";
+          for (var gt = 4; gt < p.w - 4; gt += 12) {
+            ctx.beginPath();
+            ctx.moveTo(px + gt, p.y);
+            ctx.lineTo(px + gt + 3, p.y - 5);
+            ctx.lineTo(px + gt + 6, p.y);
+            ctx.closePath();
+            ctx.fill();
+          }
+        } else {
+          rect(px, p.y, p.w, p.h, "#4a7a30");
+          rect(px + 2, p.y + 2, p.w - 4, 3, "#6a9a4a");
         }
       } else {
         if (p.h > 20) {
@@ -1507,6 +1794,280 @@
       rect(ex + 8, ey + 34, 5, 4, "#6a3a1a");
       rect(ex + 21, ey + 34, 5, 4, "#6a3a1a");
     }
+
+    else if (e.type === "brick_wall") {
+      // Brick wall obstacle
+      ctx.fillStyle = "#8a4a3a";
+      ctx.fillRect(ex, ey, e.w, e.h);
+      // Brick pattern
+      ctx.strokeStyle = "#6a3a2a";
+      ctx.lineWidth = 1;
+      for (var by = 0; by < e.h; by += 10) {
+        var offset = (Math.floor(by / 10) % 2 === 0) ? 0 : e.w / 2;
+        for (var bx = -offset; bx < e.w; bx += e.w / 2) {
+          ctx.strokeRect(ex + bx, ey + by, e.w / 2, 10);
+        }
+      }
+      // Mortar lines
+      ctx.fillStyle = "#b0a090";
+      for (var ml = 10; ml < e.h; ml += 10) {
+        ctx.fillRect(ex, ey + ml - 1, e.w, 2);
+      }
+      // Top edge
+      ctx.fillStyle = "#9a5a4a";
+      ctx.fillRect(ex, ey, e.w, 3);
+    }
+
+    else if (e.type === "lighthouse") {
+      // Lighthouse tower
+      ctx.fillStyle = "#e0e0e0";
+      ctx.fillRect(ex + 5, ey + 15, 20, e.h - 15);
+      // Red stripes
+      ctx.fillStyle = "#cc3333";
+      for (var ls = 20; ls < e.h - 10; ls += 16) {
+        ctx.fillRect(ex + 5, ey + ls, 20, 8);
+      }
+      // Lamp room at top
+      ctx.fillStyle = "#444";
+      ctx.fillRect(ex + 2, ey + 5, 26, 12);
+      // Light (glowing)
+      ctx.fillStyle = "#ffee44";
+      ctx.globalAlpha = 0.7 + Math.sin(frameCount * 0.08) * 0.3;
+      ctx.beginPath();
+      ctx.arc(ex + 15, ey + 11, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // Roof
+      ctx.fillStyle = "#333";
+      ctx.beginPath();
+      ctx.moveTo(ex, ey + 5);
+      ctx.lineTo(ex + 15, ey - 5);
+      ctx.lineTo(ex + 30, ey + 5);
+      ctx.closePath();
+      ctx.fill();
+      // Base
+      ctx.fillStyle = "#999";
+      ctx.fillRect(ex + 3, ey + e.h - 5, 24, 5);
+    }
+
+    else if (e.type === "reindeer") {
+      // Body
+      ctx.fillStyle = "#7a5a3a";
+      ctx.fillRect(ex + 6, ey + 16, 32, 20);
+      // Head
+      ctx.fillStyle = "#8a6a4a";
+      ctx.beginPath();
+      ctx.arc(ex + 6, ey + 18, 8, 0, Math.PI * 2);
+      ctx.fill();
+      // Red nose
+      ctx.fillStyle = "#ee2222";
+      ctx.beginPath();
+      ctx.arc(ex, ey + 20, 3, 0, Math.PI * 2);
+      ctx.fill();
+      // Antlers
+      ctx.strokeStyle = "#a08060";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ex + 4, ey + 12);
+      ctx.lineTo(ex - 4, ey + 2);
+      ctx.lineTo(ex - 10, ey);
+      ctx.moveTo(ex - 4, ey + 2);
+      ctx.lineTo(ex, ey - 2);
+      ctx.moveTo(ex + 10, ey + 12);
+      ctx.lineTo(ex + 16, ey + 2);
+      ctx.lineTo(ex + 22, ey);
+      ctx.moveTo(ex + 16, ey + 2);
+      ctx.lineTo(ex + 12, ey - 2);
+      ctx.stroke();
+      // Eye
+      ctx.fillStyle = "#000";
+      ctx.beginPath(); ctx.arc(ex + 4, ey + 16, 2, 0, Math.PI * 2); ctx.fill();
+      // Legs
+      ctx.fillStyle = "#5a3a1a";
+      rect(ex + 10, ey + 34, 4, 10, "#5a3a1a");
+      rect(ex + 30, ey + 34, 4, 10, "#5a3a1a");
+      // Hooves
+      rect(ex + 9, ey + 42, 6, 2, "#333");
+      rect(ex + 29, ey + 42, 6, 2, "#333");
+    }
+
+    else if (e.type === "hurt_flag") {
+      // Flag pole
+      ctx.fillStyle = "#666";
+      ctx.fillRect(ex + 10, ey, 4, e.h);
+      // Flag (red — dangerous!)
+      ctx.fillStyle = "#dd2222";
+      ctx.beginPath();
+      ctx.moveTo(ex + 14, ey + 4);
+      ctx.lineTo(ex + e.w, ey + 12);
+      ctx.lineTo(ex + 14, ey + 22);
+      ctx.closePath();
+      ctx.fill();
+      // Skull/danger symbol on flag
+      ctx.fillStyle = "#fff";
+      ctx.font = "10px sans-serif";
+      ctx.fillText("☠", ex + 14, ey + 17);
+      // Warning sparkle
+      ctx.globalAlpha = 0.5 + Math.sin(frameCount * 0.1) * 0.3;
+      ctx.fillStyle = "#ff4444";
+      ctx.beginPath();
+      ctx.arc(ex + 18, ey + 4, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    else if (e.type === "turkey") {
+      // Body (round brown)
+      ctx.fillStyle = "#8a5a30";
+      ctx.beginPath();
+      ctx.ellipse(ex + 18, ey + 20, 14, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Tail feathers (fan)
+      var featherColors = ["#cc3333", "#cc8833", "#cc6633", "#dd4444", "#bb7722"];
+      for (var fi = 0; fi < 5; fi++) {
+        ctx.fillStyle = featherColors[fi];
+        var fang = -0.6 + fi * 0.3;
+        ctx.beginPath();
+        ctx.ellipse(ex + 32 + Math.cos(fang) * 4, ey + 14 + Math.sin(fang) * 8, 3, 10, fang, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Head (small, above body)
+      ctx.fillStyle = "#7a4a20";
+      ctx.beginPath();
+      ctx.arc(ex + 6, ey + 12, 6, 0, Math.PI * 2);
+      ctx.fill();
+      // Beak (pecking)
+      ctx.fillStyle = "#e0a020";
+      ctx.beginPath();
+      ctx.moveTo(ex + 2, ey + 13);
+      ctx.lineTo(ex - 6, ey + 15);
+      ctx.lineTo(ex + 2, ey + 17);
+      ctx.closePath();
+      ctx.fill();
+      // Snood (red wattle)
+      ctx.fillStyle = "#dd3333";
+      ctx.beginPath();
+      ctx.ellipse(ex + 4, ey + 17, 2, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Eye
+      ctx.fillStyle = "#000";
+      ctx.beginPath(); ctx.arc(ex + 4, ey + 10, 1.5, 0, Math.PI * 2); ctx.fill();
+      // Legs
+      ctx.fillStyle = "#c08020";
+      rect(ex + 12, ey + 30, 3, 4, "#c08020");
+      rect(ex + 22, ey + 30, 3, 4, "#c08020");
+      // Feet
+      ctx.strokeStyle = "#c08020";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ex + 10, ey + 34);
+      ctx.lineTo(ex + 16, ey + 34);
+      ctx.moveTo(ex + 20, ey + 34);
+      ctx.lineTo(ex + 26, ey + 34);
+      ctx.stroke();
+    }
+
+    else if (e.type === "onion_ring") {
+      // Onion ring (golden circle)
+      ctx.strokeStyle = "#d4a030";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(ex + e.w / 2, ey + e.h / 2, e.w / 2 - 3, 0, Math.PI * 2);
+      ctx.stroke();
+      // Inner ring
+      ctx.strokeStyle = "#c09020";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(ex + e.w / 2, ey + e.h / 2, e.w / 2 - 7, 0, Math.PI * 2);
+      ctx.stroke();
+      // Crispy bits (small dots)
+      ctx.fillStyle = "#e8c060";
+      for (var ob = 0; ob < 6; ob++) {
+        var oang = (ob / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(ex + e.w / 2 + Math.cos(oang) * (e.w / 2 - 5),
+                ey + e.h / 2 + Math.sin(oang) * (e.h / 2 - 5), 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    else if (e.type === "sock") {
+      // Sock laying on ground
+      ctx.fillStyle = "#e0e0e0";
+      // Foot part (horizontal)
+      ctx.beginPath();
+      ctx.ellipse(ex + 10, ey + 6, 10, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Ankle/cuff part
+      ctx.fillStyle = "#d0d0d0";
+      ctx.fillRect(ex + 16, ey + 2, 12, 10);
+      // Toe
+      ctx.fillStyle = "#cc4444";
+      ctx.beginPath();
+      ctx.ellipse(ex + 2, ey + 6, 4, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Heel
+      ctx.fillStyle = "#cc4444";
+      ctx.beginPath();
+      ctx.ellipse(ex + 18, ey + 8, 3, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Stripes on cuff
+      ctx.fillStyle = "#4444cc";
+      ctx.fillRect(ex + 22, ey + 3, 4, 2);
+      ctx.fillRect(ex + 22, ey + 7, 4, 2);
+    }
+
+    else if (e.type === "dog") {
+      // Body (brown and black dog)
+      ctx.fillStyle = "#5a3a1a";
+      ctx.fillRect(ex + 8, ey + 12, 28, 16);
+      // Brown patch
+      ctx.fillStyle = "#8a6a3a";
+      ctx.fillRect(ex + 14, ey + 12, 16, 10);
+      // Head
+      ctx.fillStyle = "#3a2a1a";
+      ctx.beginPath();
+      ctx.arc(ex + 6, ey + 14, 8, 0, Math.PI * 2);
+      ctx.fill();
+      // Brown muzzle
+      ctx.fillStyle = "#8a6a3a";
+      ctx.beginPath();
+      ctx.ellipse(ex + 2, ey + 17, 5, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Nose
+      ctx.fillStyle = "#111";
+      ctx.beginPath();
+      ctx.arc(ex - 1, ey + 16, 2, 0, Math.PI * 2);
+      ctx.fill();
+      // Eye
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 5, ey + 11, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#3a2010";
+      ctx.beginPath(); ctx.arc(ex + 5, ey + 11, 1.2, 0, Math.PI * 2); ctx.fill();
+      // Ears (floppy)
+      ctx.fillStyle = "#3a2a1a";
+      ctx.beginPath();
+      ctx.ellipse(ex + 1, ey + 8, 3, 6, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(ex + 11, ey + 8, 3, 6, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      // Tail (wagging)
+      ctx.strokeStyle = "#5a3a1a";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(ex + 36, ey + 14);
+      ctx.quadraticCurveTo(ex + 42, ey + 6 + Math.sin(frameCount * 0.15) * 4, ex + 40, ey + 4);
+      ctx.stroke();
+      // Legs
+      ctx.fillStyle = "#3a2a1a";
+      rect(ex + 10, ey + 26, 4, 6, "#3a2a1a");
+      rect(ex + 28, ey + 26, 4, 6, "#3a2a1a");
+      // Paws
+      ctx.fillStyle = "#8a6a3a";
+      rect(ex + 9, ey + 30, 6, 2, "#8a6a3a");
+      rect(ex + 27, ey + 30, 6, 2, "#8a6a3a");
+    }
   }
 
   function drawSpikeyBall(x, y, r) {
@@ -1665,11 +2226,14 @@
       // Draw
       if (currentLevel === 2) {
         drawIceCaveBackground();
+      } else if (currentLevel === 3) {
+        drawGrassCaveBackground();
       } else {
         drawCaveBackground();
       }
       drawPlatforms();
       if (currentLevel === 2) drawIcicles();
+      if (currentLevel === 3) drawRopePictures();
       drawFinish();
       for (var i = 0; i < enemies.length; i++) drawEnemy(enemies[i]);
       drawProjectiles();
