@@ -45,6 +45,23 @@ All Level 1 enemies plus:
 | 🦈 **Stingray** | Glides toward you with a wave motion — time your jump carefully |
 | 🦔 **Spiky Guy** | Throws pretzels that land on the ground — dodge or stomp |
 
+### Level 3 — Grass Cave
+
+| Enemy / Obstacle | Description |
+|------------------|-------------|
+| 🧱 **Brick Wall** | Tall wall — jump on top or over it, running into it is deadly |
+| 🏠 **Lighthouse** | Tall tower — jump on top or over it to avoid collision |
+| 🖼️ **Rope Picture** | Picture on a rope that drops from the ceiling to squish you — jump over it |
+| 🦌 **Reindeer** | Stationary — jump over or stomp |
+| 🦔 **Spiky Guy** | Throws pretzels that land on the ground — dodge or stomp |
+| 🚩 **Hurt Flag** | Red flag on a pole — cannot be stomped, must jump over it |
+| 🦃 **Turkey** | Charges toward you and pecks — time your jump to stomp or dodge |
+| 🧅 **Onion Ring** | Golden ring on the ground — jump over or stomp |
+| 🧦 **Sock** | Sock laying on the ground — jump over or stomp |
+| 🐕 **Dog** | Black and brown dog that runs toward you — stomp or jump over |
+
+> **Note:** The flag at the very end of the level is the finish line and does **not** hurt you!
+
 ## Running Locally
 
 Just open the file directly in your browser:
