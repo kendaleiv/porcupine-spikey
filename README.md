@@ -45,8 +45,6 @@ All Level 1 enemies plus:
 | 🦈 **Stingray** | Glides toward you with a wave motion — time your jump carefully |
 | 🦔 **Spiky Guy** | Throws pretzels that land on the ground — dodge or stomp |
 
-⚠️ Watch out for **falling icicles** — they drop from the ceiling when you get close!
-
 ## Running Locally
 
 Just open the file directly in your browser:
