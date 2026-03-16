@@ -116,6 +116,22 @@
     return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
   }
 
+  // ── Fullscreen toggle ─────────────────────────────────────
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+
+  function toggleFullscreen() {
+    if (isFullscreen()) {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    } else {
+      var el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    }
+  }
+
   // ── Camera ─────────────────────────────────────────────────
   var camera = { x: 0 };
 
@@ -449,6 +465,7 @@
     { x: 520, y: 160, w: 180, h: 100, label: "Level 3", sub: "Grass Cave" }
   ];
   var backButton = { x: 10, y: 10, w: 100, h: 36 };
+  var fullscreenButton = { x: CANVAS_W - 46, y: 10, w: 36, h: 36 };
 
   // ── Character selection ──────────────────────────────────
   var selectedCharacter = "porcupine"; // "porcupine", "pig", or "hamster"
@@ -494,6 +511,13 @@
     // ── Level select screen ──
     if (state === "level_select") {
       if (mouseClick) {
+        // Fullscreen button
+        if (pointInRect(mouseClick.x, mouseClick.y, fullscreenButton.x, fullscreenButton.y, fullscreenButton.w, fullscreenButton.h)) {
+          mouseClick = null;
+          keys["Space"] = false;
+          toggleFullscreen();
+          return;
+        }
         for (var li = 0; li < levelButtons.length; li++) {
           var lb = levelButtons[li];
           if (pointInRect(mouseClick.x, mouseClick.y, lb.x, lb.y, lb.w, lb.h)) {
@@ -541,6 +565,13 @@
     }
 
     if (state === "dead") {
+      if (mouseClick) {
+        if (pointInRect(mouseClick.x, mouseClick.y, fullscreenButton.x, fullscreenButton.y, fullscreenButton.w, fullscreenButton.h)) {
+          mouseClick = null;
+          toggleFullscreen();
+          return;
+        }
+      }
       mouseClick = null;
       deathTimer++;
       if (deathTimer > 90 && keys["Space"]) resetGame();
@@ -548,6 +579,13 @@
       return;
     }
     if (state === "won") {
+      if (mouseClick) {
+        if (pointInRect(mouseClick.x, mouseClick.y, fullscreenButton.x, fullscreenButton.y, fullscreenButton.w, fullscreenButton.h)) {
+          mouseClick = null;
+          toggleFullscreen();
+          return;
+        }
+      }
       mouseClick = null;
       if (keys["Space"]) goToLevelSelect();
       return;
@@ -556,6 +594,11 @@
     // Back to level select
     if (keys["Escape"]) { keys["Escape"] = false; goToLevelSelect(); return; }
     if (mouseClick) {
+      if (pointInRect(mouseClick.x, mouseClick.y, fullscreenButton.x, fullscreenButton.y, fullscreenButton.w, fullscreenButton.h)) {
+        mouseClick = null;
+        toggleFullscreen();
+        return;
+      }
       if (pointInRect(mouseClick.x, mouseClick.y, backButton.x, backButton.y, backButton.w, backButton.h)) {
         mouseClick = null;
         goToLevelSelect();
@@ -945,6 +988,8 @@
     ctx.font = "12px 'Courier New', monospace";
     ctx.fillText("UP/DOWN or W/S to change character", CANVAS_W / 2, 385);
     ctx.textAlign = "left";
+
+    drawFullscreenButton();
   }
 
   // ── Character preview for level select ──────────────────
@@ -2177,6 +2222,43 @@
     ctx.fillText("★", fx + 28, finish.y + 20);
   }
 
+  // ── Fullscreen button ─────────────────────────────────────
+  function drawFullscreenButton() {
+    var fb = fullscreenButton;
+    ctx.fillStyle = "rgba(60,60,80,0.7)";
+    ctx.fillRect(fb.x, fb.y, fb.w, fb.h);
+    ctx.strokeStyle = "#888";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(fb.x, fb.y, fb.w, fb.h);
+    // Draw expand/collapse icon
+    ctx.strokeStyle = "#ccc";
+    ctx.lineWidth = 2;
+    var cx = fb.x + fb.w / 2;
+    var cy = fb.y + fb.h / 2;
+    var s = 7;
+    if (isFullscreen()) {
+      // Collapse icon: arrows pointing inward
+      // Top-left
+      ctx.beginPath(); ctx.moveTo(cx - s, cy - s); ctx.lineTo(cx - s - 4, cy - s); ctx.moveTo(cx - s, cy - s); ctx.lineTo(cx - s, cy - s - 4); ctx.stroke();
+      // Top-right
+      ctx.beginPath(); ctx.moveTo(cx + s, cy - s); ctx.lineTo(cx + s + 4, cy - s); ctx.moveTo(cx + s, cy - s); ctx.lineTo(cx + s, cy - s - 4); ctx.stroke();
+      // Bottom-left
+      ctx.beginPath(); ctx.moveTo(cx - s, cy + s); ctx.lineTo(cx - s - 4, cy + s); ctx.moveTo(cx - s, cy + s); ctx.lineTo(cx - s, cy + s + 4); ctx.stroke();
+      // Bottom-right
+      ctx.beginPath(); ctx.moveTo(cx + s, cy + s); ctx.lineTo(cx + s + 4, cy + s); ctx.moveTo(cx + s, cy + s); ctx.lineTo(cx + s, cy + s + 4); ctx.stroke();
+    } else {
+      // Expand icon: arrows pointing outward from corners
+      // Top-left
+      ctx.beginPath(); ctx.moveTo(cx - s - 4, cy - s - 4); ctx.lineTo(cx - s, cy - s - 4); ctx.moveTo(cx - s - 4, cy - s - 4); ctx.lineTo(cx - s - 4, cy - s); ctx.stroke();
+      // Top-right
+      ctx.beginPath(); ctx.moveTo(cx + s + 4, cy - s - 4); ctx.lineTo(cx + s, cy - s - 4); ctx.moveTo(cx + s + 4, cy - s - 4); ctx.lineTo(cx + s + 4, cy - s); ctx.stroke();
+      // Bottom-left
+      ctx.beginPath(); ctx.moveTo(cx - s - 4, cy + s + 4); ctx.lineTo(cx - s, cy + s + 4); ctx.moveTo(cx - s - 4, cy + s + 4); ctx.lineTo(cx - s - 4, cy + s); ctx.stroke();
+      // Bottom-right
+      ctx.beginPath(); ctx.moveTo(cx + s + 4, cy + s + 4); ctx.lineTo(cx + s, cy + s + 4); ctx.moveTo(cx + s + 4, cy + s + 4); ctx.lineTo(cx + s + 4, cy + s); ctx.stroke();
+    }
+  }
+
   function drawHUD() {
     // Back button
     ctx.fillStyle = "rgba(60,60,80,0.7)";
@@ -2196,11 +2278,13 @@
 
     // Progress bar
     var progress = Math.min(player.x / LEVEL_END, 1);
-    rect(CANVAS_W - 180, 14, 160, 10, "#333");
-    rect(CANVAS_W - 180, 14, 160 * progress, 10, "#f0c040");
+    rect(CANVAS_W - 220, 14, 160, 10, "#333");
+    rect(CANVAS_W - 220, 14, 160 * progress, 10, "#f0c040");
     ctx.strokeStyle = "#666";
     ctx.lineWidth = 1;
-    ctx.strokeRect(CANVAS_W - 180, 14, 160, 10);
+    ctx.strokeRect(CANVAS_W - 220, 14, 160, 10);
+
+    drawFullscreenButton();
   }
 
   function drawOverlay(text, sub) {

@@ -23,6 +23,7 @@ Our oldest kid helped provide content ideas. 🙂
 5. Jump **on top** of enemies to defeat them!
 6. You can also jump **over** enemies to avoid them
 7. Reach the flag at the end of the level to win!
+8. Tap the **⛶ fullscreen button** (top-right corner) for a mobile-friendly full screen experience
 
 ## Enemies
 
