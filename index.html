@@ -2302,22 +2302,23 @@
 
   // ── MAIN LOOP ──────────────────────────────────────────────
   // Fixed timestep: update() runs at a steady 60 FPS regardless of the
-  // display's actual refresh rate.  On high-refresh-rate Android screens
-  // (90/120/144 Hz) Chrome may boost rAF frequency during touch input,
+  // display's actual refresh rate.  On high-refresh-rate screens
+  // (90/120/144 Hz) browsers may boost rAF frequency during touch input,
   // which previously caused the game to speed up.
   var TARGET_FPS = 60;
   var FRAME_DURATION = 1000 / TARGET_FPS;   // ≈16.67 ms
-  var lastLoopTime = 0;
+  var MAX_FRAME_GAP = 200;                  // ms – ignore gaps larger than this
+  var lastLoopTime = -1;
   var accumulatedTime = 0;
 
   function loop(timestamp) {
-    if (!lastLoopTime) lastLoopTime = timestamp;
+    if (lastLoopTime < 0) lastLoopTime = timestamp;
     var elapsed = timestamp - lastLoopTime;
     lastLoopTime = timestamp;
 
     // Clamp large gaps (e.g. returning from a background tab) so the
     // game doesn't try to "catch up" with dozens of update steps.
-    if (elapsed > 200) elapsed = FRAME_DURATION;
+    if (elapsed > MAX_FRAME_GAP) elapsed = FRAME_DURATION;
 
     accumulatedTime += elapsed;
 
