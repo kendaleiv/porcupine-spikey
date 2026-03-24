@@ -248,13 +248,10 @@
       return (seed - 1) / 2147483646;
     }
     while (gx < LEVEL_END + CANVAS_W) {
-      var gap = false;
-      if (gx > 800 && gx < LEVEL_END - 400 && seededRandom() < 0.09) {
-        gap = true;
+      if (gx > 800 && gx < LEVEL_END - 400) {
+        seededRandom();
       }
-      if (!gap) {
-        platforms.push({ x: gx, y: GROUND_Y, w: 80, h: 60 });
-      }
+      platforms.push({ x: gx, y: GROUND_Y, w: 80, h: 60 });
       gx += 80;
     }
     var floats = [
