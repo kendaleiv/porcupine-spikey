@@ -150,6 +150,10 @@
   // ── Rope pictures (level 3 falling hazards) ────────────────
   var ropePictures = [];
 
+  // ── Sand geysers (level 4 — rise out of the ground and launch you) ──
+  var sandGeysers = [];
+  var SAND_LAUNCH_FORCE = -16;   // upward push when you land on a sand geyser
+
   // ── Level builders ─────────────────────────────────────────
   function buildLevel1() {
     platforms.length = 0;
@@ -278,6 +282,66 @@
         x: rx, baseY: 20, y: 20, h: 35 + Math.floor(rRand() * 25),
         falling: false, fallen: false, vy: 0,
         w: 18, opacity: 1
+      });
+    }
+  }
+
+  function buildLevel4() {
+    platforms.length = 0;
+    stalactites.length = 0;
+    icicles.length = 0;
+    ropePictures.length = 0;
+    sandGeysers.length = 0;
+    var gx = 0;
+    var seed = 137;
+    function seededRandom() {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    }
+    var gapCenters = [];
+    while (gx < LEVEL_END + CANVAS_W) {
+      var gap = false;
+      // Wider gaps than other levels — the sand geysers help you cross them
+      if (gx > 800 && gx < LEVEL_END - 400 && seededRandom() < 0.11) {
+        gap = true;
+        gapCenters.push(gx + 40);
+      }
+      if (!gap) {
+        platforms.push({ x: gx, y: GROUND_Y, w: 80, h: 60 });
+      }
+      gx += 80;
+    }
+    var floats = [
+      [330, 255], [570, 210], [900, 250], [1200, 195],
+      [1500, 255], [1800, 175], [2100, 235], [2500, 195],
+      [2800, 255], [3100, 175], [3400, 225], [3800, 195],
+      [4100, 255], [4400, 185], [4700, 235], [5000, 195],
+      [5300, 255], [5600, 175], [5900, 215], [6200, 255]
+    ];
+    for (var i = 0; i < floats.length; i++) {
+      platforms.push({ x: floats[i][0], y: floats[i][1], w: 120, h: 16 });
+    }
+    // Sand geysers — rise out of the ground and launch you upward.
+    // Placed over every gap so a well-timed jump onto one saves you from the pit.
+    var gSeed = 500;
+    function gRand() { gSeed = (gSeed * 16807) % 2147483647; return (gSeed - 1) / 2147483646; }
+    for (var gi = 0; gi < gapCenters.length; gi++) {
+      sandGeysers.push({
+        x: gapCenters[gi] - 18, w: 36,
+        amplitude: 90 + Math.floor(gRand() * 40),  // how far it rises out of the ground
+        speed: 0.02 + gRand() * 0.015,
+        phase: gRand() * Math.PI * 2,
+        top: GROUND_Y
+      });
+    }
+    // A few extra geysers on solid ground so you can practice bouncing
+    for (var ex = 1000; ex < LEVEL_END - 400; ex += 900 + Math.floor(gRand() * 400)) {
+      sandGeysers.push({
+        x: ex, w: 36,
+        amplitude: 80 + Math.floor(gRand() * 40),
+        speed: 0.02 + gRand() * 0.015,
+        phase: gRand() * Math.PI * 2,
+        top: GROUND_Y
       });
     }
   }
@@ -425,10 +489,51 @@
     }
   }
 
+  function spawnEnemiesLevel4() {
+    var defs = [
+      { x: 900, type: "snake" },
+      { x: 1200, type: "spiky_guy" },
+      { x: 1500, type: "cyclops_laser" },
+      { x: 1800, type: "snake" },
+      { x: 2100, type: "cyclops_pot" },
+      { x: 2400, type: "spiky_guy" },
+      { x: 2700, type: "cyclops_laser" },
+      { x: 3000, type: "snake" },
+      { x: 3300, type: "cyclops_pot" },
+      { x: 3600, type: "spiky_guy" },
+      { x: 3900, type: "cyclops_laser" },
+      { x: 4200, type: "snake" },
+      { x: 4500, type: "cyclops_pot" },
+      { x: 4800, type: "spiky_guy" },
+      { x: 5100, type: "cyclops_laser" },
+      { x: 5400, type: "snake" },
+      { x: 5700, type: "cyclops_pot" },
+      { x: 6000, type: "spiky_guy" },
+      { x: 6100, type: "snake" }
+    ];
+    for (var i = 0; i < defs.length; i++) {
+      var d = defs[i];
+      var ew, eh;
+      if (d.type === "snake")             { ew = 40; eh = 30; }
+      else if (d.type === "cyclops_laser"){ ew = 36; eh = 40; }
+      else if (d.type === "cyclops_pot")  { ew = 36; eh = 40; }
+      else if (d.type === "spiky_guy")    { ew = 34; eh = 38; }
+      else                                { ew = 32; eh = 38; }
+      enemies.push({
+        x: d.x, y: GROUND_Y - eh, w: ew, h: eh,
+        type: d.type, alive: true,
+        vx: 0,
+        activated: true,
+        shootTimer: 120
+      });
+    }
+  }
+
   function spawnEnemies() {
     if (currentLevel === 1) spawnEnemiesLevel1();
     else if (currentLevel === 2) spawnEnemiesLevel2();
-    else spawnEnemiesLevel3();
+    else if (currentLevel === 3) spawnEnemiesLevel3();
+    else spawnEnemiesLevel4();
   }
   spawnEnemies();
 
@@ -457,9 +562,10 @@
 
   // ── Level selector button areas ────────────────────────────
   var levelButtons = [
-    { x: 80, y: 160, w: 180, h: 100, label: "Level 1", sub: "Cave Adventure" },
-    { x: 300, y: 160, w: 180, h: 100, label: "Level 2", sub: "Ice Cave" },
-    { x: 520, y: 160, w: 180, h: 100, label: "Level 3", sub: "Grass Cave" }
+    { x: 16, y: 160, w: 180, h: 100, label: "Level 1", sub: "Cave Adventure" },
+    { x: 212, y: 160, w: 180, h: 100, label: "Level 2", sub: "Ice Cave" },
+    { x: 408, y: 160, w: 180, h: 100, label: "Level 3", sub: "Grass Cave" },
+    { x: 604, y: 160, w: 180, h: 100, label: "Level 4", sub: "Desert" }
   ];
   var backButton = { x: 10, y: 10, w: 100, h: 36 };
   var fullscreenButton = { x: CANVAS_W - 46, y: 10, w: 36, h: 36 };
@@ -479,7 +585,8 @@
     currentLevel = level;
     if (level === 1) buildLevel1();
     else if (level === 2) buildLevel2();
-    else buildLevel3();
+    else if (level === 3) buildLevel3();
+    else buildLevel4();
     player.x = 80; player.y = GROUND_Y - 36;
     player.vy = 0; player.onGround = false;
     player.alive = true; player.won = false;
@@ -627,6 +734,28 @@
           player.y = p.y - player.h;
           player.vy = 0;
           player.onGround = true;
+        }
+      }
+    }
+
+    // Sand geyser collision (level 4) — landing on a rising sand column
+    // launches you up into the air, so a well-timed jump saves you from pits.
+    if (currentLevel === 4) {
+      for (var gsi = 0; gsi < sandGeysers.length; gsi++) {
+        var g = sandGeysers[gsi];
+        // Oscillate: top rises out of the ground and sinks back in
+        var rise = 0.5 + 0.5 * Math.sin(g.phase + frameCount * g.speed);
+        g.top = GROUND_Y - g.amplitude * rise;
+        // Only a geyser that is out of the ground can be landed on
+        if (g.top < GROUND_Y - 8 &&
+            player.x + player.w > g.x && player.x < g.x + g.w) {
+          if (player.vy >= 0 &&
+              player.y + player.h > g.top &&
+              player.y + player.h < g.top + player.vy + PLATFORM_SNAP_TOLERANCE + 12) {
+            player.y = g.top - player.h;
+            player.vy = SAND_LAUNCH_FORCE;
+            player.onGround = false;
+          }
         }
       }
     }
@@ -788,6 +917,37 @@
         }
       }
 
+      // Snake spits fire that skims along the ground — jump over it
+      if (e.type === "snake") {
+        if (e.x - camera.x < CANVAS_W && e.x - camera.x > -40) {
+          e.shootTimer--;
+          if (e.shootTimer <= 0) {
+            e.shootTimer = 150;
+            projectiles.push({ x: e.x, y: e.y + e.h - 14, vx: -3.5, vy: -1.5, life: 140, w: 16, h: 12, ptype: "fire" });
+          }
+        }
+      }
+      // One-eyed creature fires a fast horizontal laser — jump over it
+      if (e.type === "cyclops_laser") {
+        if (e.x - camera.x < CANVAS_W && e.x - camera.x > -40) {
+          e.shootTimer--;
+          if (e.shootTimer <= 0) {
+            e.shootTimer = 130;
+            projectiles.push({ x: e.x, y: e.y + 12, vx: -7, vy: 0, life: 130, w: 26, h: 7, ptype: "laser" });
+          }
+        }
+      }
+      // One-eyed creature lobs a pot — jump over it
+      if (e.type === "cyclops_pot") {
+        if (e.x - camera.x < CANVAS_W && e.x - camera.x > -40) {
+          e.shootTimer--;
+          if (e.shootTimer <= 0) {
+            e.shootTimer = 160;
+            projectiles.push({ x: e.x, y: e.y + 4, vx: -3, vy: -3, life: 200, w: 16, h: 16, ptype: "pot" });
+          }
+        }
+      }
+
       // Collision with player
       if (aabb(player, e)) {
         // Hurt flags always hurt — can't stomp them
@@ -830,7 +990,7 @@
       if (pr.ptype === "pretzel") {
         pr.spinAngle = (pr.spinAngle || 0) + 0.2;
       }
-      pr.vy += 0.15;
+      if (pr.ptype !== "laser") pr.vy += 0.15;  // lasers travel in a straight line
       pr.y += pr.vy;
       pr.life--;
       if (pr.ptype === "pretzel" && pr.y + pr.h >= GROUND_Y) {
@@ -922,7 +1082,7 @@
           ctx.closePath();
           ctx.fill();
         }
-      } else {
+      } else if (i === 2) {
         // Grass cave icon — green grass and vines
         ctx.fillStyle = "#3a5a2a";
         ctx.fillRect(lb.x + 60, lb.y + 30, 60, 20);
@@ -942,6 +1102,26 @@
         ctx.moveTo(lb.x + 90, lb.y + 10);
         ctx.quadraticCurveTo(lb.x + 94, lb.y + 20, lb.x + 90, lb.y + 30);
         ctx.stroke();
+      } else {
+        // Desert icon — sand dunes, sun and a cactus
+        ctx.fillStyle = "#f0c040";
+        ctx.beginPath();
+        ctx.arc(lb.x + 108, lb.y + 16, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#d9a441";
+        ctx.beginPath();
+        ctx.moveTo(lb.x + 58, lb.y + 46);
+        ctx.quadraticCurveTo(lb.x + 78, lb.y + 26, lb.x + 98, lb.y + 46);
+        ctx.quadraticCurveTo(lb.x + 108, lb.y + 34, lb.x + 122, lb.y + 46);
+        ctx.closePath();
+        ctx.fill();
+        // Cactus
+        ctx.fillStyle = "#3a7a3a";
+        ctx.fillRect(lb.x + 74, lb.y + 26, 6, 20);
+        ctx.fillRect(lb.x + 68, lb.y + 32, 6, 4);
+        ctx.fillRect(lb.x + 68, lb.y + 28, 4, 8);
+        ctx.fillRect(lb.x + 80, lb.y + 30, 6, 4);
+        ctx.fillRect(lb.x + 84, lb.y + 24, 4, 10);
       }
       // Label
       ctx.fillStyle = selected ? "#f0c040" : "#ccc";
@@ -1208,6 +1388,79 @@
     ctx.globalAlpha = 1;
   }
 
+  function drawDesertBackground() {
+    // Warm desert sky gradient
+    var grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+    grad.addColorStop(0, "#f6b352");
+    grad.addColorStop(0.45, "#f0c98a");
+    grad.addColorStop(1, "#e8b56a");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Sun
+    ctx.fillStyle = "#fff3c0";
+    ctx.beginPath();
+    ctx.arc(120, 70, 34, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    ctx.arc(120, 70, 48, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Distant pyramids (slow parallax)
+    ctx.fillStyle = "#cf9a55";
+    for (var pxp = -((camera.x * 0.2) % 400); pxp < CANVAS_W; pxp += 400) {
+      ctx.beginPath();
+      ctx.moveTo(pxp + 60, 240);
+      ctx.lineTo(pxp + 160, 100);
+      ctx.lineTo(pxp + 260, 240);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Rolling dunes (mid parallax)
+    ctx.fillStyle = "#deb26a";
+    for (var dxp = -((camera.x * 0.4) % 320); dxp < CANVAS_W + 40; dxp += 320) {
+      ctx.beginPath();
+      ctx.moveTo(dxp - 40, 300);
+      ctx.quadraticCurveTo(dxp + 80, 220, dxp + 200, 300);
+      ctx.lineTo(dxp + 200, CANVAS_H);
+      ctx.lineTo(dxp - 40, CANVAS_H);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawSandGeysers() {
+    for (var i = 0; i < sandGeysers.length; i++) {
+      var g = sandGeysers[i];
+      var gx = g.x - camera.x;
+      if (gx + g.w < -20 || gx > CANVAS_W + 20) continue;
+      var top = g.top;
+      if (top >= GROUND_Y - 1) continue;  // fully retracted into the ground
+      // Sand column
+      ctx.fillStyle = "#e6b866";
+      ctx.fillRect(gx, top, g.w, GROUND_Y - top + 6);
+      // Lighter streaks
+      ctx.fillStyle = "#f2cd86";
+      ctx.fillRect(gx + 4, top, 5, GROUND_Y - top + 6);
+      ctx.fillRect(gx + g.w - 12, top + 4, 5, GROUND_Y - top);
+      // Spraying sand particles at the top
+      ctx.fillStyle = "#f6dca0";
+      for (var s = 0; s < 6; s++) {
+        var sx = gx + 3 + (s * (g.w - 6) / 5);
+        var sy = top - 4 - (Math.sin(frameCount * 0.2 + s + g.phase) + 1) * 5;
+        ctx.fillRect(sx, sy, 3, 3);
+      }
+      // Rounded sandy crest
+      ctx.fillStyle = "#eec378";
+      ctx.beginPath();
+      ctx.ellipse(gx + g.w / 2, top, g.w / 2, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   function drawRopePictures() {
     for (var i = 0; i < ropePictures.length; i++) {
       var rp = ropePictures[i];
@@ -1324,6 +1577,26 @@
         } else {
           rect(px, p.y, p.w, p.h, "#4a7a30");
           rect(px + 2, p.y + 2, p.w - 4, 3, "#6a9a4a");
+        }
+      } else if (currentLevel === 4) {
+        // Desert platforms — sandy top over packed sandstone
+        if (p.h > 20) {
+          rect(px, p.y, p.w, 4, "#f0cd82");    // sandy top
+          rect(px, p.y + 4, p.w, p.h - 4, "#c99a54"); // sandstone
+          ctx.fillStyle = "#b5854a";
+          for (var dx4 = 8; dx4 < p.w; dx4 += 20) {
+            for (var dy4 = 12; dy4 < p.h - 8; dy4 += 16) {
+              ctx.fillRect(px + dx4, p.y + dy4, 3, 3);
+            }
+          }
+          // Little sand ripples on top
+          ctx.fillStyle = "#f6dca0";
+          for (var sr = 4; sr < p.w - 4; sr += 16) {
+            ctx.fillRect(px + sr, p.y + 1, 8, 2);
+          }
+        } else {
+          rect(px, p.y, p.w, p.h, "#e0b878");
+          rect(px + 2, p.y + 2, p.w - 4, 3, "#f2cd86");
         }
       } else {
         if (p.h > 20) {
@@ -2110,6 +2383,103 @@
       rect(ex + 9, ey + 30, 6, 2, "#8a6a3a");
       rect(ex + 27, ey + 30, 6, 2, "#8a6a3a");
     }
+
+    else if (e.type === "snake") {
+      // Coiled desert snake — green/tan with a raised head
+      ctx.fillStyle = "#6a9a3a";
+      ctx.beginPath();
+      ctx.ellipse(ex + 20, ey + 22, 18, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Coil band
+      ctx.fillStyle = "#4a7a2a";
+      ctx.beginPath();
+      ctx.ellipse(ex + 20, ey + 24, 12, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Raised neck and head
+      ctx.fillStyle = "#6a9a3a";
+      ctx.beginPath();
+      ctx.moveTo(ex + 4, ey + 22);
+      ctx.quadraticCurveTo(ex - 2, ey + 8, ex + 8, ey + 4);
+      ctx.quadraticCurveTo(ex + 16, ey + 2, ex + 16, ey + 12);
+      ctx.quadraticCurveTo(ex + 12, ey + 20, ex + 4, ey + 22);
+      ctx.closePath();
+      ctx.fill();
+      // Belly stripe
+      ctx.fillStyle = "#d8d080";
+      ctx.beginPath();
+      ctx.ellipse(ex + 9, ey + 10, 3, 6, 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      // Eye
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 9, ey + 7, 2.4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#000";
+      ctx.beginPath(); ctx.arc(ex + 8.5, ey + 7, 1.1, 0, Math.PI * 2); ctx.fill();
+      // Forked tongue
+      ctx.strokeStyle = "#d02020";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(ex + 4, ey + 8);
+      ctx.lineTo(ex - 4, ey + 6);
+      ctx.moveTo(ex - 4, ey + 6);
+      ctx.lineTo(ex - 7, ey + 4);
+      ctx.moveTo(ex - 4, ey + 6);
+      ctx.lineTo(ex - 7, ey + 8);
+      ctx.stroke();
+    }
+
+    else if (e.type === "cyclops_laser") {
+      // One-eyed purple creature with a single glowing laser eye
+      ctx.fillStyle = "#7a4aa0";
+      ctx.beginPath();
+      ctx.ellipse(ex + 18, ey + 22, 16, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Feet
+      ctx.fillStyle = "#5a3080";
+      rect(ex + 6, ey + 36, 8, 4, "#5a3080");
+      rect(ex + 22, ey + 36, 8, 4, "#5a3080");
+      // Single big eye
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 18, ey + 16, 8, 0, Math.PI * 2); ctx.fill();
+      // Glowing red laser pupil
+      ctx.fillStyle = "#ff3030";
+      ctx.beginPath(); ctx.arc(ex + 14, ey + 16, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#ffd0d0";
+      ctx.beginPath(); ctx.arc(ex + 13, ey + 15, 1.4, 0, Math.PI * 2); ctx.fill();
+      // Little antenna
+      ctx.strokeStyle = "#5a3080";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(ex + 18, ey + 4); ctx.lineTo(ex + 18, ey - 4); ctx.stroke();
+      ctx.fillStyle = "#ff3030";
+      ctx.beginPath(); ctx.arc(ex + 18, ey - 5, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    else if (e.type === "cyclops_pot") {
+      // One-eyed teal creature carrying a clay pot
+      ctx.fillStyle = "#2a9a8a";
+      ctx.beginPath();
+      ctx.ellipse(ex + 18, ey + 22, 16, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Feet
+      ctx.fillStyle = "#1a6a5a";
+      rect(ex + 6, ey + 36, 8, 4, "#1a6a5a");
+      rect(ex + 22, ey + 36, 8, 4, "#1a6a5a");
+      // Single eye
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 16, ey + 14, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#000";
+      ctx.beginPath(); ctx.arc(ex + 14, ey + 14, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 13, ey + 13, 1, 0, Math.PI * 2); ctx.fill();
+      // Clay pot held up top
+      ctx.fillStyle = "#b5652a";
+      ctx.beginPath();
+      ctx.ellipse(ex + 30, ey + 8, 8, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#8a4a1a";
+      ctx.fillRect(ex + 22, ey - 2, 16, 4);  // pot rim
+      ctx.fillStyle = "#d0803a";
+      ctx.fillRect(ex + 24, ey + 6, 12, 2);  // highlight band
+    }
   }
 
   function drawSpikeyBall(x, y, r) {
@@ -2175,6 +2545,52 @@
     ctx.restore();
   }
 
+  function drawFire(x, y) {
+    // Flickering flame
+    var flick = Math.sin(frameCount * 0.5 + x) * 2;
+    ctx.fillStyle = "#e02020";
+    ctx.beginPath();
+    ctx.moveTo(x - 7, y + 6);
+    ctx.quadraticCurveTo(x - 8, y - 6 + flick, x, y - 10 - flick);
+    ctx.quadraticCurveTo(x + 8, y - 6 + flick, x + 7, y + 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#f4a020";
+    ctx.beginPath();
+    ctx.moveTo(x - 4, y + 6);
+    ctx.quadraticCurveTo(x - 5, y - 2 + flick, x, y - 6 - flick);
+    ctx.quadraticCurveTo(x + 5, y - 2 + flick, x + 4, y + 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#ffe060";
+    ctx.beginPath();
+    ctx.ellipse(x, y + 2, 2.5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawLaser(x, y, w) {
+    ctx.fillStyle = "#ff3030";
+    ctx.fillRect(x - w / 2, y - 3, w, 6);
+    ctx.fillStyle = "#ffb0b0";
+    ctx.fillRect(x - w / 2, y - 1, w, 2);
+    // Glow tip
+    ctx.fillStyle = "#ffe0e0";
+    ctx.beginPath();
+    ctx.arc(x - w / 2, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawPot(x, y, r) {
+    ctx.fillStyle = "#b5652a";
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r * 1.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#8a4a1a";
+    ctx.fillRect(x - r, y - r * 1.1, r * 2, 3);   // rim
+    ctx.fillStyle = "#d0803a";
+    ctx.fillRect(x - r + 2, y - 1, r * 2 - 4, 2); // highlight band
+  }
+
   function drawProjectiles() {
     for (var i = 0; i < projectiles.length; i++) {
       var pr = projectiles[i];
@@ -2184,6 +2600,12 @@
         drawSnowball(prx, pr.y, 6);
       } else if (pr.ptype === "pretzel") {
         drawPretzel(prx, pr.y, 8, pr.spinAngle || 0);
+      } else if (pr.ptype === "fire") {
+        drawFire(prx, pr.y);
+      } else if (pr.ptype === "laser") {
+        drawLaser(prx, pr.y, pr.w);
+      } else if (pr.ptype === "pot") {
+        drawPot(prx, pr.y, 8);
       } else {
         drawSpikeyBall(prx, pr.y, 5);
       }
@@ -2333,12 +2755,15 @@
         drawIceCaveBackground();
       } else if (currentLevel === 3) {
         drawGrassCaveBackground();
+      } else if (currentLevel === 4) {
+        drawDesertBackground();
       } else {
         drawCaveBackground();
       }
       drawPlatforms();
       if (currentLevel === 2) drawIcicles();
       if (currentLevel === 3) drawRopePictures();
+      if (currentLevel === 4) drawSandGeysers();
       drawFinish();
       for (var i = 0; i < enemies.length; i++) drawEnemy(enemies[i]);
       drawProjectiles();

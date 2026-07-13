@@ -63,6 +63,20 @@ All Level 1 enemies plus:
 
 > **Note:** The flag at the very end of the level is the finish line and does **not** hurt you!
 
+### Level 4 — Desert
+
+A sun-baked desert with wide cliffs. **Sand geysers** erupt from the ground over the gaps — they rise and sink again on a loop. Land on one while it is up and it launches you high into the air, carrying you across the cliff so you don't fall in. Time your jumps!
+
+| Enemy / Obstacle | Description |
+|------------------|-------------|
+| ⛲ **Sand Geyser** | A column of sand that rises out of the ground and sinks back down — jump on it while it's up to get launched into the air and cross the cliffs |
+| 🐍 **Snake** | Spits fire that skims along the ground — jump over the fire, and stomp its head to defeat it |
+| 👁️ **Laser Creature** | A one-eyed creature that fires a fast horizontal laser — jump over the laser, or stomp its head |
+| 🏺 **Pot Creature** | A one-eyed creature that lobs a clay pot — jump over the pot, or stomp its head |
+| 🦔 **Spiky Guy** | Throws pretzels that land on the ground — dodge or stomp |
+
+> **Note:** The flag at the very end of the level is the finish line and does **not** hurt you!
+
 ## Running Locally
 
 Just open the file directly in your browser:
