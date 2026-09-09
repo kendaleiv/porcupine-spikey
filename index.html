@@ -154,6 +154,10 @@
   var sandGeysers = [];
   var SAND_LAUNCH_FORCE = -16;   // upward push when you land on a sand geyser
 
+  // ── Seesaws (level 5 — bridge and launch across the giant hole) ──
+  var seesaws = [];
+  var SEESAW_LAUNCH_FORCE = -18;
+
   // ── Level builders ─────────────────────────────────────────
   function buildLevel1() {
     platforms.length = 0;
@@ -346,6 +350,48 @@
     }
   }
 
+  function buildLevel5() {
+    platforms.length = 0;
+    stalactites.length = 0;
+    icicles.length = 0;
+    ropePictures.length = 0;
+    sandGeysers.length = 0;
+    seesaws.length = 0;
+
+    // The 240-pixel opening is too wide for a normal jump. The seesaw
+    // reaches into it and launches the player far enough to reach the other side.
+    var giantHoleStart = 2640;
+    var giantHoleEnd = 2880;
+    for (var gx = 0; gx < LEVEL_END + CANVAS_W; gx += 80) {
+      if (gx < giantHoleStart || gx >= giantHoleEnd) {
+        platforms.push({ x: gx, y: GROUND_Y, w: 80, h: 60 });
+      }
+    }
+    var floats = [
+      [360, 250], [680, 205], [1040, 245], [1360, 195],
+      [1700, 250], [2050, 185], [2360, 235], [3100, 220],
+      [3450, 255], [3800, 190], [4150, 235], [4550, 190],
+      [4900, 250], [5250, 180], [5600, 225], [6000, 250]
+    ];
+    for (var i = 0; i < floats.length; i++) {
+      platforms.push({ x: floats[i][0], y: floats[i][1], w: 120, h: 16 });
+    }
+    seesaws.push({
+      x: giantHoleStart + 5, y: GROUND_Y - 8, w: 130, h: 8,
+      angle: -0.08, kick: 0
+    });
+
+    // Roots and vines share the stalactite data used by the grass cave.
+    var rootSeed = 229;
+    function rootRand() {
+      rootSeed = (rootSeed * 16807) % 2147483647;
+      return (rootSeed - 1) / 2147483646;
+    }
+    for (var sx = 80; sx < LEVEL_END; sx += 150 + Math.floor(rootRand() * 120)) {
+      stalactites.push({ x: sx, h: 25 + Math.floor(rootRand() * 55) });
+    }
+  }
+
   // Build level 1 initially
   buildLevel1();
 
@@ -360,7 +406,7 @@
   // Level 1 types: "thrower", "moose", "dinosaur", "penguin"
   // Level 2 adds: "snowman", "stingray", "spiky_guy"
   var enemies = [];
-  var projectiles = [];   // spikey balls / snowballs / pretzels
+  var projectiles = [];   // thrown and fired hazards
 
   function spawnEnemiesLevel1() {
     var defs = [
@@ -529,11 +575,44 @@
     }
   }
 
+  function spawnEnemiesLevel5() {
+    var defs = [
+      { x: 850, type: "bee" },
+      { x: 1450, type: "mosquito" },
+      { x: 1950, type: "fox" },
+      { x: 2350, type: "chipmunk" },
+      { x: 3300, type: "bee" },
+      { x: 3850, type: "mosquito" },
+      { x: 4450, type: "fox" },
+      { x: 5050, type: "chipmunk" },
+      { x: 5650, type: "bee" },
+      { x: 6050, type: "fox" }
+    ];
+    for (var i = 0; i < defs.length; i++) {
+      var d = defs[i];
+      var ew = d.type === "fox" ? 46 : (d.type === "chipmunk" ? 34 : 32);
+      var eh = d.type === "fox" ? 34 : (d.type === "chipmunk" ? 38 : 26);
+      var flying = d.type === "bee" || d.type === "mosquito";
+      enemies.push({
+        x: d.x, y: flying ? 230 : GROUND_Y - eh, w: ew, h: eh,
+        type: d.type, alive: true, vx: d.type === "bee" ? 1.2 : 0,
+        activated: d.type !== "mosquito" && d.type !== "fox",
+        shootTimer: d.type === "chipmunk" ? 100 : 0,
+        homeX: d.x,
+        patrolMin: d.x - 120,
+        patrolMax: d.x + 120,
+        targetSlot: 0,
+        moveTimer: 60
+      });
+    }
+  }
+
   function spawnEnemies() {
     if (currentLevel === 1) spawnEnemiesLevel1();
     else if (currentLevel === 2) spawnEnemiesLevel2();
     else if (currentLevel === 3) spawnEnemiesLevel3();
-    else spawnEnemiesLevel4();
+    else if (currentLevel === 4) spawnEnemiesLevel4();
+    else spawnEnemiesLevel5();
   }
   spawnEnemies();
 
@@ -562,10 +641,11 @@
 
   // ── Level selector button areas ────────────────────────────
   var levelButtons = [
-    { x: 16, y: 160, w: 180, h: 100, label: "Level 1", sub: "Cave Adventure" },
-    { x: 212, y: 160, w: 180, h: 100, label: "Level 2", sub: "Ice Cave" },
-    { x: 408, y: 160, w: 180, h: 100, label: "Level 3", sub: "Grass Cave" },
-    { x: 604, y: 160, w: 180, h: 100, label: "Level 4", sub: "Desert" }
+    { x: 16, y: 160, w: 144, h: 90, label: "Level 1", sub: "Cave Adventure" },
+    { x: 172, y: 160, w: 144, h: 90, label: "Level 2", sub: "Ice Cave" },
+    { x: 328, y: 160, w: 144, h: 90, label: "Level 3", sub: "Grass Cave" },
+    { x: 484, y: 160, w: 144, h: 90, label: "Level 4", sub: "Desert" },
+    { x: 640, y: 160, w: 144, h: 90, label: "Level 5", sub: "Bug Burrow" }
   ];
   var backButton = { x: 10, y: 10, w: 100, h: 36 };
   var fullscreenButton = { x: CANVAS_W - 46, y: 10, w: 36, h: 36 };
@@ -586,7 +666,8 @@
     if (level === 1) buildLevel1();
     else if (level === 2) buildLevel2();
     else if (level === 3) buildLevel3();
-    else buildLevel4();
+    else if (level === 4) buildLevel4();
+    else buildLevel5();
     player.x = 80; player.y = GROUND_Y - 36;
     player.vy = 0; player.onGround = false;
     player.alive = true; player.won = false;
