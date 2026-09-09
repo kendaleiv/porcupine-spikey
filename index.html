@@ -399,7 +399,7 @@
   var player = {
     x: 80, y: GROUND_Y - 36, w: 32, h: 36,
     vy: 0, onGround: false, alive: true, won: false,
-    frame: 0, frameTimer: 0
+    frame: 0, frameTimer: 0, seesawBoost: 0
   };
 
   // ── Enemies ────────────────────────────────────────────────
@@ -670,6 +670,7 @@
     else buildLevel5();
     player.x = 80; player.y = GROUND_Y - 36;
     player.vy = 0; player.onGround = false;
+    player.seesawBoost = 0;
     player.alive = true; player.won = false;
     camera.x = 0; state = "playing"; deathTimer = 0; score = 0;
     enemies.length = 0; projectiles.length = 0; particles.length = 0;
@@ -793,7 +794,8 @@
     }
 
     // Player auto-walk
-    player.x += PLAYER_SPEED;
+    player.x += PLAYER_SPEED + (player.seesawBoost > 0 ? 3 : 0);
+    if (player.seesawBoost > 0) player.seesawBoost--;
 
     // Jump
     if (keys["Space"] && player.onGround) {
@@ -836,6 +838,27 @@
             player.y = g.top - player.h;
             player.vy = SAND_LAUNCH_FORCE;
             player.onGround = false;
+          }
+        }
+
+        // The level 5 seesaw is a bridge into the giant hole and launches
+        // the player forward without requiring an extra tap.
+        if (currentLevel === 5) {
+          for (var ssi = 0; ssi < seesaws.length; ssi++) {
+            var ss = seesaws[ssi];
+            ss.kick *= 0.9;
+            ss.angle = -0.08 + ss.kick * 0.22;
+            if (player.seesawBoost === 0 &&
+                player.x + player.w > ss.x && player.x < ss.x + ss.w &&
+                player.vy >= 0 &&
+                player.y + player.h > ss.y - 4 &&
+                player.y + player.h < ss.y + ss.h + player.vy + 12) {
+              player.y = ss.y - player.h;
+              player.vy = SEESAW_LAUNCH_FORCE;
+              player.onGround = false;
+              player.seesawBoost = 50;
+              ss.kick = 1;
+            }
           }
         }
       }
@@ -944,6 +967,17 @@
           e.activated = true;
           e.vx = -3;
         }
+
+        // The mosquito chases in a repeating left, middle, right pattern.
+        if (!e.activated && e.type === "mosquito" && e.x - camera.x < CANVAS_W + 60) {
+          e.activated = true;
+        }
+
+        // Foxes charge in from ahead.
+        if (!e.activated && e.type === "fox" && e.x - camera.x < CANVAS_W + 40) {
+          e.activated = true;
+          e.vx = -2.6;
+        }
       }
 
       // Penguin slides once activated
@@ -962,6 +996,29 @@
       }
       // Dog runs toward player
       if (e.type === "dog" && e.activated) {
+        e.x += e.vx;
+      }
+      // Bees patrol three platform spaces to either side of their nests.
+      if (e.type === "bee") {
+        e.x += e.vx;
+        if (e.x <= e.patrolMin || e.x >= e.patrolMax) {
+          e.vx *= -1;
+          e.x = Math.max(e.patrolMin, Math.min(e.patrolMax, e.x));
+        }
+        e.y = 230 + Math.sin(frameCount * 0.08 + e.homeX) * 10;
+      }
+      if (e.type === "mosquito" && e.activated) {
+        e.moveTimer--;
+        if (e.moveTimer <= 0) {
+          e.targetSlot = (e.targetSlot + 1) % 3;
+          e.moveTimer = 60;
+        }
+        var mosquitoOffsets = [-90, 0, 90];
+        var targetX = player.x + mosquitoOffsets[e.targetSlot];
+        e.x += Math.max(-2.2, Math.min(2.2, targetX - e.x));
+        e.y = 220 + Math.sin(frameCount * 0.12) * 24;
+      }
+      if (e.type === "fox" && e.activated) {
         e.x += e.vx;
       }
       // Thrower shoots only when on screen
@@ -1025,6 +1082,19 @@
           if (e.shootTimer <= 0) {
             e.shootTimer = 160;
             projectiles.push({ x: e.x, y: e.y + 4, vx: -3, vy: -3, life: 200, w: 16, h: 16, ptype: "pot" });
+          }
+        }
+        // Chipmunks throw arcing acorns from safe ground.
+        if (e.type === "chipmunk") {
+          if (e.x - camera.x < CANVAS_W && e.x - camera.x > -40) {
+            e.shootTimer--;
+            if (e.shootTimer <= 0) {
+              e.shootTimer = 115;
+              projectiles.push({
+                x: e.x, y: e.y + 8, vx: -3.6, vy: -3.2,
+                life: 170, w: 12, h: 14, ptype: "acorn"
+              });
+            }
           }
         }
       }
@@ -1183,7 +1253,7 @@
         ctx.moveTo(lb.x + 90, lb.y + 10);
         ctx.quadraticCurveTo(lb.x + 94, lb.y + 20, lb.x + 90, lb.y + 30);
         ctx.stroke();
-      } else {
+      } else if (i === 3) {
         // Desert icon — sand dunes, sun and a cactus
         ctx.fillStyle = "#f0c040";
         ctx.beginPath();
@@ -1203,6 +1273,25 @@
         ctx.fillRect(lb.x + 68, lb.y + 28, 4, 8);
         ctx.fillRect(lb.x + 80, lb.y + 30, 6, 4);
         ctx.fillRect(lb.x + 84, lb.y + 24, 4, 10);
+      } else {
+        // Bug burrow icon — grass, soil and a seesaw
+        ctx.fillStyle = "#6a8f3c";
+        ctx.fillRect(lb.x + 20, lb.y + 12, 104, 5);
+        ctx.fillStyle = "#5a3c24";
+        ctx.fillRect(lb.x + 20, lb.y + 17, 104, 32);
+        ctx.strokeStyle = "#d09a4a";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(lb.x + 45, lb.y + 38);
+        ctx.lineTo(lb.x + 102, lb.y + 24);
+        ctx.stroke();
+        ctx.fillStyle = "#8a6a3a";
+        ctx.beginPath();
+        ctx.moveTo(lb.x + 72, lb.y + 42);
+        ctx.lineTo(lb.x + 82, lb.y + 42);
+        ctx.lineTo(lb.x + 77, lb.y + 30);
+        ctx.closePath();
+        ctx.fill();
       }
       // Label
       ctx.fillStyle = selected ? "#f0c040" : "#ccc";
@@ -1513,6 +1602,53 @@
     }
   }
 
+  function drawBugBurrowBackground() {
+    var grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+    grad.addColorStop(0, "#16240f");
+    grad.addColorStop(0.22, "#34451f");
+    grad.addColorStop(0.23, "#68472b");
+    grad.addColorStop(1, "#2c1c18");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // A strip of grass above the underground tunnels.
+    rect(0, 0, CANVAS_W, 18, "#5f8f38");
+    rect(0, 18, CANVAS_W, 8, "#4d6f2d");
+    for (var grassX = -((camera.x * 0.2) % 24); grassX < CANVAS_W; grassX += 24) {
+      ctx.fillStyle = "#75aa45";
+      ctx.beginPath();
+      ctx.moveTo(grassX, 18);
+      ctx.lineTo(grassX + 5, 7);
+      ctx.lineTo(grassX + 10, 18);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Hanging roots and dim stones establish the burrow setting.
+    for (var i = 0; i < stalactites.length; i++) {
+      var root = stalactites[i];
+      var rootX = root.x - camera.x;
+      if (rootX < -20 || rootX > CANVAS_W + 20) continue;
+      ctx.strokeStyle = "#6d4b2f";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(rootX, 25);
+      ctx.quadraticCurveTo(rootX - 8, 25 + root.h * 0.55, rootX + 3, 25 + root.h);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = "#b58a60";
+    for (var rockX = -((camera.x * 0.3) % 180); rockX < CANVAS_W; rockX += 180) {
+      ctx.beginPath();
+      ctx.ellipse(rockX + 30, 150, 30, 16, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(rockX + 115, 250, 22, 12, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function drawSandGeysers() {
     for (var i = 0; i < sandGeysers.length; i++) {
       var g = sandGeysers[i];
@@ -1539,6 +1675,29 @@
       ctx.beginPath();
       ctx.ellipse(gx + g.w / 2, top, g.w / 2, 5, 0, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  function drawSeesaws() {
+    for (var i = 0; i < seesaws.length; i++) {
+      var ss = seesaws[i];
+      var sx = ss.x - camera.x;
+      if (sx + ss.w < -30 || sx > CANVAS_W + 30) continue;
+      var centerX = sx + ss.w / 2;
+      var centerY = ss.y + 4;
+      ctx.fillStyle = "#80603a";
+      ctx.beginPath();
+      ctx.moveTo(centerX - 15, GROUND_Y + 28);
+      ctx.lineTo(centerX + 15, GROUND_Y + 28);
+      ctx.lineTo(centerX, centerY + 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(ss.angle);
+      rect(-ss.w / 2, -4, ss.w, ss.h, "#d39b4b");
+      rect(-ss.w / 2 + 5, -3, ss.w - 10, 2, "#f0bd68");
+      ctx.restore();
     }
   }
 
@@ -1674,6 +1833,21 @@
           ctx.fillStyle = "#f6dca0";
           for (var sr = 4; sr < p.w - 4; sr += 16) {
             ctx.fillRect(px + sr, p.y + 1, 8, 2);
+          }
+        } else if (currentLevel === 5) {
+          // Underground grass platforms
+          if (p.h > 20) {
+            rect(px, p.y, p.w, 5, "#6b9b42");
+            rect(px, p.y + 5, p.w, p.h - 5, "#543621");
+            ctx.fillStyle = "#3d271b";
+            for (var dx5 = 9; dx5 < p.w; dx5 += 22) {
+              for (var dy5 = 14; dy5 < p.h - 5; dy5 += 18) {
+                ctx.fillRect(px + dx5, p.y + dy5, 4, 3);
+              }
+            }
+          } else {
+            rect(px, p.y, p.w, p.h, "#6c4a2e");
+            rect(px + 2, p.y + 2, p.w - 4, 3, "#78a94c");
           }
         } else {
           rect(px, p.y, p.w, p.h, "#e0b878");
@@ -2561,6 +2735,156 @@
       ctx.fillStyle = "#d0803a";
       ctx.fillRect(ex + 24, ey + 6, 12, 2);  // highlight band
     }
+
+    else if (e.type === "bee") {
+      // The nest is part of the bee encounter, so both vanish after a stomp.
+      var nestX = e.homeX - camera.x + 6;
+      ctx.strokeStyle = "#6b4525";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(nestX + 10, 25);
+      ctx.lineTo(nestX + 10, 175);
+      ctx.stroke();
+      ctx.fillStyle = "#c88a2d";
+      ctx.beginPath();
+      ctx.ellipse(nestX + 10, 188, 15, 19, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#8f5d1f";
+      ctx.lineWidth = 2;
+      for (var hiveLine = 178; hiveLine <= 196; hiveLine += 6) {
+        ctx.beginPath();
+        ctx.moveTo(nestX - 2, hiveLine);
+        ctx.lineTo(nestX + 22, hiveLine);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#3a2518";
+      ctx.beginPath();
+      ctx.ellipse(nestX + 10, 195, 5, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      var wingFlap = Math.sin(frameCount * 0.5) * 3;
+      ctx.fillStyle = "rgba(210,240,255,0.75)";
+      ctx.beginPath();
+      ctx.ellipse(ex + 12, ey + 4 - wingFlap, 8, 5, -0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(ex + 22, ey + 4 + wingFlap, 8, 5, 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#efbd32";
+      ctx.beginPath();
+      ctx.ellipse(ex + 16, ey + 14, 15, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+      rect(ex + 8, ey + 6, 4, 17, "#392a1f");
+      rect(ex + 17, ey + 5, 4, 19, "#392a1f");
+      ctx.fillStyle = "#222";
+      ctx.beginPath(); ctx.arc(ex + 27, ey + 11, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#222";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(ex + 26, ey + 6); ctx.lineTo(ex + 31, ey);
+      ctx.moveTo(ex + 22, ey + 5); ctx.lineTo(ex + 24, ey - 2);
+      ctx.stroke();
+    }
+
+    else if (e.type === "mosquito") {
+      ctx.strokeStyle = "#4b3d36";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ex + 15, ey + 6);
+      ctx.lineTo(ex + 15, ey + 21);
+      ctx.moveTo(ex + 15, ey + 10);
+      ctx.lineTo(ex + 3, ey + 22);
+      ctx.moveTo(ex + 15, ey + 10);
+      ctx.lineTo(ex + 28, ey + 22);
+      ctx.moveTo(ex + 15, ey + 14);
+      ctx.lineTo(ex + 5, ey + 25);
+      ctx.moveTo(ex + 15, ey + 14);
+      ctx.lineTo(ex + 25, ey + 25);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(205,230,235,0.7)";
+      ctx.beginPath();
+      ctx.ellipse(ex + 8, ey + 7, 10, 4, -0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(ex + 22, ey + 7, 10, 4, 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#6f6257";
+      ctx.beginPath(); ctx.ellipse(ex + 15, ey + 14, 5, 9, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#8c302d";
+      ctx.beginPath(); ctx.arc(ex + 15, ey + 5, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#7b2725";
+      ctx.beginPath(); ctx.moveTo(ex + 11, ey + 5); ctx.lineTo(ex - 2, ey + 2); ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(ex + 13, ey + 3, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    else if (e.type === "fox") {
+      ctx.fillStyle = "#d96f28";
+      ctx.beginPath();
+      ctx.ellipse(ex + 25, ey + 20, 20, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Bushy tail
+      ctx.beginPath();
+      ctx.ellipse(ex + 43, ey + 17, 15, 8, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#f3e2ca";
+      ctx.beginPath();
+      ctx.ellipse(ex + 54, ey + 11, 6, 4, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      // Pointed head and ears
+      ctx.fillStyle = "#e17a2e";
+      ctx.beginPath();
+      ctx.moveTo(ex + 9, ey + 8);
+      ctx.lineTo(ex - 4, ey + 19);
+      ctx.lineTo(ex + 11, ey + 26);
+      ctx.lineTo(ex + 20, ey + 13);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(ex + 8, ey + 10); ctx.lineTo(ex + 9, ey - 2); ctx.lineTo(ex + 15, ey + 10);
+      ctx.moveTo(ex + 15, ey + 10); ctx.lineTo(ex + 20, ey); ctx.lineTo(ex + 21, ey + 14);
+      ctx.fill();
+      ctx.fillStyle = "#f3e2ca";
+      ctx.beginPath(); ctx.moveTo(ex - 3, ey + 19); ctx.lineTo(ex + 9, ey + 18); ctx.lineTo(ex + 6, ey + 25); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#1d1714";
+      ctx.beginPath(); ctx.arc(ex - 3, ey + 18, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 10, ey + 13, 1.8, 0, Math.PI * 2); ctx.fill();
+      rect(ex + 16, ey + 28, 5, 6, "#8d421d");
+      rect(ex + 33, ey + 28, 5, 6, "#8d421d");
+    }
+
+    else if (e.type === "chipmunk") {
+      ctx.fillStyle = "#a66a35";
+      ctx.beginPath();
+      ctx.ellipse(ex + 18, ey + 22, 13, 15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#d5a263";
+      ctx.beginPath(); ctx.ellipse(ex + 13, ey + 24, 7, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#5d381f";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(ex + 20, ey + 9); ctx.quadraticCurveTo(ex + 34, ey + 10, ex + 28, ey + 33);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ex + 25, ey + 6);
+      ctx.quadraticCurveTo(ex + 43, ey + 7, ex + 32, ey + 27);
+      ctx.stroke();
+      // Head, ear and cheek
+      ctx.fillStyle = "#b97a42";
+      ctx.beginPath(); ctx.arc(ex + 8, ey + 10, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 11, ey + 1, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#e5b979";
+      ctx.beginPath(); ctx.arc(ex + 3, ey + 13, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#191512";
+      ctx.beginPath(); ctx.arc(ex, ey + 8, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(ex + 8, ey + 7, 1.5, 0, Math.PI * 2); ctx.fill();
+      // Acorn held ready to throw
+      ctx.fillStyle = "#75451f";
+      ctx.beginPath(); ctx.ellipse(ex - 4, ey + 20, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+      rect(ex - 9, ey + 15, 10, 3, "#4e301b");
+      rect(ex + 9, ey + 34, 5, 4, "#744522");
+      rect(ex + 21, ey + 34, 5, 4, "#744522");
+    }
   }
 
   function drawSpikeyBall(x, y, r) {
@@ -2672,6 +2996,18 @@
     ctx.fillRect(x - r + 2, y - 1, r * 2 - 4, 2); // highlight band
   }
 
+  function drawAcorn(x, y) {
+    ctx.fillStyle = "#8a572a";
+    ctx.beginPath();
+    ctx.ellipse(x, y + 2, 6, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#52331d";
+    ctx.beginPath();
+    ctx.ellipse(x, y - 3, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    rect(x - 1, y - 8, 2, 4, "#3d2819");
+  }
+
   function drawProjectiles() {
     for (var i = 0; i < projectiles.length; i++) {
       var pr = projectiles[i];
@@ -2687,6 +3023,8 @@
         drawLaser(prx, pr.y, pr.w);
       } else if (pr.ptype === "pot") {
         drawPot(prx, pr.y, 8);
+      } else if (pr.ptype === "acorn") {
+        drawAcorn(prx, pr.y);
       } else {
         drawSpikeyBall(prx, pr.y, 5);
       }
@@ -2838,6 +3176,8 @@
         drawGrassCaveBackground();
       } else if (currentLevel === 4) {
         drawDesertBackground();
+      } else if (currentLevel === 5) {
+        drawBugBurrowBackground();
       } else {
         drawCaveBackground();
       }
@@ -2845,6 +3185,7 @@
       if (currentLevel === 2) drawIcicles();
       if (currentLevel === 3) drawRopePictures();
       if (currentLevel === 4) drawSandGeysers();
+      if (currentLevel === 5) drawSeesaws();
       drawFinish();
       for (var i = 0; i < enemies.length; i++) drawEnemy(enemies[i]);
       drawProjectiles();
