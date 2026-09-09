@@ -645,7 +645,7 @@
     { x: 172, y: 160, w: 144, h: 90, label: "Level 2", sub: "Ice Cave" },
     { x: 328, y: 160, w: 144, h: 90, label: "Level 3", sub: "Grass Cave" },
     { x: 484, y: 160, w: 144, h: 90, label: "Level 4", sub: "Desert" },
-    { x: 640, y: 160, w: 144, h: 90, label: "Level 5", sub: "Bug Burrow" }
+    { x: 640, y: 160, w: 144, h: 90, label: "Level 5", sub: "Grass Level" }
   ];
   var backButton = { x: 10, y: 10, w: 100, h: 36 };
   var fullscreenButton = { x: CANVAS_W - 46, y: 10, w: 36, h: 36 };
@@ -1274,7 +1274,7 @@
         ctx.fillRect(lb.x + 80, lb.y + 30, 6, 4);
         ctx.fillRect(lb.x + 84, lb.y + 24, 4, 10);
       } else {
-        // Bug burrow icon — grass, soil and a seesaw
+        // Grass Level icon — grass, soil and a seesaw
         ctx.fillStyle = "#6a8f3c";
         ctx.fillRect(lb.x + 20, lb.y + 12, 104, 5);
         ctx.fillStyle = "#5a3c24";
@@ -1602,7 +1602,7 @@
     }
   }
 
-  function drawBugBurrowBackground() {
+  function drawGrassLevelBackground() {
     var grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
     grad.addColorStop(0, "#16240f");
     grad.addColorStop(0.22, "#34451f");
@@ -3177,7 +3177,7 @@
       } else if (currentLevel === 4) {
         drawDesertBackground();
       } else if (currentLevel === 5) {
-        drawBugBurrowBackground();
+        drawGrassLevelBackground();
       } else {
         drawCaveBackground();
       }

@@ -77,7 +77,7 @@ A sun-baked desert with wide cliffs. **Sand geysers** erupt from the ground over
 
 > **Note:** The flag at the very end of the level is the finish line and does **not** hurt you!
 
-### Level 5 — Bug Burrow
+### Level 5 — Grass Level
 
 An underground grass level with a giant hole that is too wide for a normal jump. Run onto the seesaw to launch across it without an extra tap.
 
