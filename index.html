@@ -840,26 +840,26 @@
             player.onGround = false;
           }
         }
+      }
+    }
 
-        // The level 5 seesaw is a bridge into the giant hole and launches
-        // the player forward without requiring an extra tap.
-        if (currentLevel === 5) {
-          for (var ssi = 0; ssi < seesaws.length; ssi++) {
-            var ss = seesaws[ssi];
-            ss.kick *= 0.9;
-            ss.angle = -0.08 + ss.kick * 0.22;
-            if (player.seesawBoost === 0 &&
-                player.x + player.w > ss.x && player.x < ss.x + ss.w &&
-                player.vy >= 0 &&
-                player.y + player.h > ss.y - 4 &&
-                player.y + player.h < ss.y + ss.h + player.vy + 12) {
-              player.y = ss.y - player.h;
-              player.vy = SEESAW_LAUNCH_FORCE;
-              player.onGround = false;
-              player.seesawBoost = 50;
-              ss.kick = 1;
-            }
-          }
+    // The level 5 seesaw is a bridge into the giant hole and launches
+    // the player forward without requiring an extra tap.
+    if (currentLevel === 5) {
+      for (var ssi = 0; ssi < seesaws.length; ssi++) {
+        var ss = seesaws[ssi];
+        ss.kick *= 0.9;
+        ss.angle = -0.08 + ss.kick * 0.22;
+        if (player.seesawBoost === 0 &&
+            player.x + player.w > ss.x && player.x < ss.x + ss.w &&
+            player.vy >= 0 &&
+            player.y + player.h > ss.y - 4 &&
+            player.y + player.h < ss.y + ss.h + player.vy + 12) {
+          player.y = ss.y - player.h;
+          player.vy = SEESAW_LAUNCH_FORCE;
+          player.onGround = false;
+          player.seesawBoost = 50;
+          ss.kick = 1;
         }
       }
     }
