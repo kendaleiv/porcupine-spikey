@@ -77,6 +77,20 @@ A sun-baked desert with wide cliffs. **Sand geysers** erupt from the ground over
 
 > **Note:** The flag at the very end of the level is the finish line and does **not** hurt you!
 
+### Level 5 — Grass Level
+
+An underground grass level with a giant hole that is too wide for a normal jump. Run onto the seesaw to launch across it without an extra tap.
+
+| Enemy / Obstacle | Description |
+|------------------|-------------|
+| 🪵 **Seesaw** | Bridges the start of the giant hole and automatically launches you to the other side |
+| 🐝 **Bee and Nest** | The bee patrols three spaces on each side of its nest; stomp the bee to remove both |
+| 🦟 **Mosquito** | Chases you while moving between left, middle, and right positions |
+| 🦊 **Fox** | Charges toward you and is deadly unless avoided or stomped |
+| 🐿️ **Chipmunk** | Throws arcing acorns that must be avoided |
+
+Reach the flag at the end to finish the level.
+
 ## Running Locally
 
 Just open the file directly in your browser:
